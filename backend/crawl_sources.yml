@@ -1,0 +1,682 @@
+# =============================================================================
+# ResumeAI 秋招爬虫生产配置
+# 合规原则：
+#   1. 仅抓取公开页面（不登录、不绕过付费墙、不爬 BOSS/智联等禁止聚合平台）
+#   2. respect_robots 默认开启；高校公开招聘列表可设 ignore_robots: true
+#   3. rate_limit_rps 限速，避免对目标站造成压力
+#   4. 每条岗位保留 jd_url 来源链接，供用户跳转官方投递
+# 修改后：POST /api/jobs/reload-config 或重启服务
+# =============================================================================
+
+compliance:
+  respect_robots: true
+  rate_limit_rps: 0.4
+  public_pages_only: true
+  user_agent: "ResumeAI-Crawler/1.0 (campus-job-aggregator; contact=local)"
+  blocked_domains:
+    - zhipin.com
+    - liepin.com
+    - 51job.com
+
+providers:
+  # ---------------------------------------------------------------------------
+  # L1 高校就业网（北上广深 / 南京 / 杭州）
+  # ---------------------------------------------------------------------------
+  university_html:
+    enabled: true
+    fallback_seeds: false
+    sources:
+      # --- 北京 ---
+      - id: tsinghua-xxfb
+        name: 清华大学
+        list_url: http://career.cic.tsinghua.edu.cn/xsglxt/f/jyxt/anony/xxfb
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 50
+        tags: [校招, 北京, 清华, L1]
+
+      - id: pku-fair
+        name: 北京大学
+        list_url: https://scc.pku.edu.cn/frontpage/pku/html/recruitmentFairList.html?fairType=1
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 40
+        tags: [校招, 北京, 北大, L1]
+
+      - id: pku-info
+        name: 北京大学
+        list_url: https://scc.pku.edu.cn/frontpage/pku/html/recruitmentinfoList.html
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 40
+        tags: [校招, 北京, 北大, L1]
+
+      - id: ruc-career
+        name: 中国人民大学
+        list_url: http://rdjy.ruc.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 北京, 人大, L1]
+
+      - id: buaa-career
+        name: 北京航空航天大学
+        list_url: https://career.buaa.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 35
+        tags: [校招, 北京, 北航, L1]
+
+      - id: bit-job
+        name: 北京理工大学
+        list_url: http://job.bit.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 35
+        tags: [校招, 北京, 北理工, L1]
+
+      - id: bnu-career
+        name: 北京师范大学
+        list_url: http://career.bnu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 北京, 北师大, L1]
+
+      - id: uibe-career
+        name: 对外经济贸易大学
+        list_url: http://career.uibe.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 4000
+        max_items: 35
+        tags: [校招, 北京, 贸大, L1]
+
+      - id: bjtu-job
+        name: 北京交通大学
+        list_url: https://job.bjtu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 北京, 北交, L1]
+
+      # --- 上海 ---
+      - id: fudan-career
+        name: 复旦大学
+        list_url: https://career.fudan.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 上海
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 40
+        tags: [校招, 上海, 复旦, L1]
+
+      - id: sjtu-job
+        name: 上海交通大学
+        list_url: https://www.job.sjtu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 上海
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 40
+        tags: [校招, 上海, 交大, L1]
+
+      - id: tongji-career
+        name: 同济大学
+        list_url: https://tj91.tongji.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 上海
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 上海, 同济, L1]
+
+      - id: ecnu-career
+        name: 华东师范大学
+        list_url: https://career.ecnu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 上海
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [校招, 上海, 华师大, L1]
+
+      # --- 武汉 / 西安 / 成都 / 厦门（补 jiandan_job 热门高校）---
+      - id: whu-career
+        name: 武汉大学
+        list_url: https://scc.whu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 武汉
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 武汉, 武大, L1]
+
+      - id: hust-career
+        name: 华中科技大学
+        list_url: https://career.hust.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 武汉
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 武汉, 华科, L1]
+
+      - id: xjtu-career
+        name: 西安交通大学
+        list_url: https://job.xjtu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 西安
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 西安, 西交, L1]
+
+      - id: xmu-career
+        name: 厦门大学
+        list_url: https://career.xmu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 厦门
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 30
+        tags: [校招, 厦门, 厦大, L1]
+
+      - id: uestc-career
+        name: 电子科技大学
+        list_url: https://www.jyzx.uestc.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 成都
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 成都, 成电, L1]
+
+      # --- 广州 ---
+      - id: sysu-career
+        name: 中山大学
+        list_url: https://career.sysu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 广州
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 40
+        tags: [校招, 广州, 中大, L1]
+
+      - id: scut-jyzx
+        name: 华南理工大学
+        list_url: https://jyzx.scut.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 广州
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 35
+        tags: [校招, 广州, 华工, L1]
+
+      - id: jnu-career
+        name: 暨南大学
+        list_url: https://career.jnu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 广州
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 广州, 暨大, L1]
+
+      # --- 深圳 ---
+      - id: szu-jobs
+        name: 深圳大学
+        list_url: https://jobszu.jysd.com/
+        parser: generic_list
+        channel: 高校就业网
+        city: 深圳
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 深圳, 深大, L1]
+
+      - id: sustech-career
+        name: 南方科技大学
+        list_url: https://career.sustech.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 深圳
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 30
+        tags: [校招, 深圳, 南科大, L1]
+
+      - id: hitsz-job
+        name: 哈工大深圳
+        list_url: https://job.hitsz.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 深圳
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 深圳, 哈工深, L1]
+
+      # --- 南京 ---
+      - id: nju-job
+        name: 南京大学
+        list_url: https://job.nju.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 南京
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 南京, 南大, L1]
+
+      - id: nuaa-91job
+        name: 南京航空航天大学
+        list_url: https://nuaa.91job.org.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 南京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 35
+        tags: [校招, 南京, 南航, L1]
+
+      # --- 杭州 ---
+      - id: zju-career
+        name: 浙江大学
+        list_url: https://www.career.zju.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 杭州
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 杭州, 浙大, L1]
+
+      - id: hdu-job
+        name: 杭州电子科技大学
+        list_url: https://job.hdu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 杭州
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 杭州, 杭电, L1]
+
+      - id: zjut-job
+        name: 浙江工业大学
+        list_url: https://job.zjut.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 杭州
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 杭州, 浙工大, L1]
+
+  # ---------------------------------------------------------------------------
+  # L2 企业校招（大厂 + 中小厂）
+  # ---------------------------------------------------------------------------
+  company_campus:
+    enabled: true
+    sources:
+      # 大厂
+      - id: bytedance-campus
+        name: 字节跳动
+        list_url: https://jobs.bytedance.com/campus/position
+        parser: bytedance_campus
+        channel: 企业校招
+        city: 全国
+        use_playwright: true
+        wait_ms: 4000
+        tags: [大厂, 校招, 北京, 上海, 杭州, 深圳]
+
+      - id: alibaba-campus
+        name: 阿里巴巴
+        list_url: https://talent.alibaba.com/campus/position-list?lang=zh
+        parser: generic_list
+        channel: 企业校招
+        city: 杭州
+        use_playwright: true
+        wait_ms: 5000
+        max_items: 40
+        tags: [大厂, 校招, 杭州]
+
+      - id: tencent-campus
+        name: 腾讯
+        list_url: https://join.qq.com/post.html
+        parser: generic_list
+        channel: 企业校招
+        city: 深圳
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [大厂, 校招, 深圳, 北京]
+
+      - id: meituan-campus
+        name: 美团
+        list_url: https://zhaopin.meituan.com/web/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 35
+        tags: [大厂, 校招, 北京, 上海]
+
+      - id: jd-campus
+        name: 京东
+        list_url: https://campus.jd.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 35
+        tags: [大厂, 校招, 北京]
+
+      - id: baidu-campus
+        name: 百度
+        list_url: https://talent.baidu.com/jobs/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 35
+        tags: [大厂, 校招, 北京]
+
+      # 中小厂 / 成长型
+      - id: xiaomi-campus
+        name: 小米
+        list_url: https://hr.xiaomi.com/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 5000
+        max_items: 30
+        tags: [中小厂, 校招, 北京]
+
+      - id: netease-campus
+        name: 网易
+        list_url: https://campus.163.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 杭州
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [中小厂, 校招, 杭州, 广州]
+
+      - id: kuaishou-campus
+        name: 快手
+        list_url: https://campus.kuaishou.cn/
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        ignore_robots: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 4000
+        max_items: 30
+        tags: [中小厂, 校招, 北京]
+
+      - id: bilibili-campus
+        name: 哔哩哔哩
+        list_url: https://jobs.bilibili.com/campus/positions
+        parser: generic_list
+        channel: 企业校招
+        city: 上海
+        use_playwright: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 5000
+        max_items: 30
+        tags: [中小厂, 校招, 上海]
+
+      - id: xiaohongshu-campus
+        name: 小红书
+        list_url: https://job.xiaohongshu.com/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 上海
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [中小厂, 校招, 上海]
+
+      - id: didi-campus
+        name: 滴滴
+        list_url: https://campus.didiglobal.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [中小厂, 校招, 北京]
+
+      - id: pdd-campus
+        name: 拼多多
+        list_url: https://careers.pinduoduo.com/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 上海
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 4000
+        max_items: 30
+        tags: [中小厂, 校招, 上海]
+
+      - id: ctrip-campus
+        name: 携程
+        list_url: https://campus.ctrip.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 上海
+        use_playwright: true
+        wait_ms: 5000
+        max_items: 30
+        tags: [中小厂, 校招, 上海]
+
+      - id: mihoyo-campus
+        name: 米哈游
+        list_url: https://jobs.mihoyo.com/#/campus
+        parser: generic_list
+        channel: 企业校招
+        city: 上海
+        use_playwright: true
+        wait_ms: 5000
+        max_items: 25
+        tags: [中小厂, 校招, 上海]
+
+      - id: iflytek-campus
+        name: 科大讯飞
+        list_url: https://campus.iflytek.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 合肥
+        use_playwright: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 5000
+        max_items: 30
+        tags: [中小厂, 校招, 合肥]
+
+      - id: ke-campus
+        name: 贝壳找房
+        list_url: https://campus.ke.com/
+        parser: generic_list
+        channel: 企业校招
+        city: 北京
+        use_playwright: true
+        wait_until: domcontentloaded
+        timeout: 90
+        wait_ms: 5000
+        max_items: 25
+        tags: [中小厂, 校招, 北京]
+
+  # ---------------------------------------------------------------------------
+  # 公开求职聚合站（合规：官方公开列表，带来源 URL）
+  # ---------------------------------------------------------------------------
+  job_aggregator:
+    enabled: true
+    sources:
+      - id: nowcoder-schedule
+        name: 牛客网校招日程
+        list_url: https://www.nowcoder.com/jobs/school/schedule
+        parser: nowcoder_schedule
+        channel: 求职聚合
+        use_playwright: true
+        wait_ms: 4500
+        max_items: 60
+        tags: [聚合, 校招, 全国, 牛客]
+
+      - id: yjs-yingjie
+        name: 应届生求职网-应届专版
+        list_url: https://s.yingjiesheng.com/h_%E5%BA%94%E5%B1%8A
+        parser: yingjiesheng_list
+        channel: 求职聚合
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 50
+        tags: [聚合, 校招, 全国, 应届生求职网]
+
+      - id: yjs-internet
+        name: 应届生求职网-互联网
+        list_url: http://s.yingjiesheng.com/h_%E7%9F%A5%E5%90%8D%E4%BA%92%E8%81%94%E7%BD%91%E4%B8%8A%E5%B8%82%E5%85%AC%E5%8F%B8
+        parser: yingjiesheng_list
+        channel: 求职聚合
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 50
+        tags: [聚合, 校招, 互联网, 应届生求职网]
+
+      - id: yjs-state-owned
+        name: 应届生求职网-央企
+        list_url: http://s.yingjiesheng.com/h_%E5%A4%AE%E4%BC%81
+        parser: yingjiesheng_list
+        channel: 求职聚合
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 40
+        tags: [聚合, 校招, 央企, 应届生求职网]
+
+      - id: ncss-platform
+        name: 国家24365就业服务平台
+        list_url: https://www.ncss.cn/
+        parser: generic_list
+        channel: 求职聚合
+        use_playwright: true
+        wait_ms: 4000
+        max_items: 40
+        tags: [聚合, 校招, 官方, "24365"]
+
+      - id: bjbys-platform
+        name: 北京高校就业创业信息网
+        list_url: https://www.bjbys.net.cn/
+        parser: generic_list
+        channel: 区域就业平台
+        city: 北京
+        use_playwright: true
+        ignore_robots: true
+        wait_ms: 3500
+        max_items: 40
+        tags: [聚合, 校招, 北京, 官方]
+
+  # ---------------------------------------------------------------------------
+  # L4 公众号文章（仅公开 mp.weixin.qq.com 文章 URL）
+  # ---------------------------------------------------------------------------
+  wechat_article:
+    enabled: true
+    # 知名校招公众号文章：从公开汇总页自动发现 + 手动订阅
+  # 说明：不爬取微信后台；仅解析用户/汇总页中已公开分享的文章链接
+    subscribed_urls: []
+    discovery_sources:
+      - name: 牛客-校招汇总帖（含公众号投递链接）
+        url: https://www.nowcoder.com/discuss/731083612199604224
+        use_playwright: true
+        wait_ms: 3000
+      - name: 牛客-2026秋招汇总
+        url: https://www.nowcoder.com/feed/main/detail/17aafd278cdc43a18a6ad2137564b518
+        use_playwright: true
+        wait_ms: 3000
+
+  # ---------------------------------------------------------------------------
+  # L5 飞书多维表格（鲨鲨 26 届秋招表，仅导入秋招）
+  # 需在 backend/.env 配置 FEISHU_APP_ID + FEISHU_APP_SECRET
+  # 或 FEISHU_USER_ACCESS_TOKEN（个人访问令牌，需 bitable:app:readonly）
+  # ---------------------------------------------------------------------------
+  feishu_bitable:
+    enabled: true
+    job_types_include: [秋招]
+    job_types_exclude: [实习, 春招, 暑期, 日常实习]
+    sources:
+      - id: shasha-26-qiuzhao
+        name: 鲨鲨26届秋招网申表
+        base_token: SAHbbOc68aH0sPscYu7cbKZjnnr
+        table_id: tblnJnFOgllO4FYe
+        view_id: vewh2m8QIt
+        channel: 飞书秋招表
+        tags: [秋招, 26届, 飞书]
+        field_map:
+          company: [公司名称, 公司, 企业名称, 公司名]
+          role: [招聘岗位, 岗位, 职位, 职位名称]
+          job_type: [招聘类型, 类型, 批次, 招聘批次]
+          location: [工作地点, 城市, 地点, 工作城市]
+          deadline: [截止时间, 网申截止, 投递截止, 截止日期]
+          jd_url: [投递链接, 网申链接, 官网链接, 链接, 投递地址]
+          published_at: [更新时间, 收录时间, 发布日期, 日期]
+          industry: [行业, 公司行业]
+          notes: [备注, 说明, 内推码]

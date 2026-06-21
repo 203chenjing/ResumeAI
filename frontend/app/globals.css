@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface-base: #f8fafc;
+  --surface-container: #ffffff;
+  --primary: #2563eb;
+  --primary-muted: #eff6ff;
+  --border-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-disabled: #94a3b8;
+  --semantic-success: #16a34a;
+  --semantic-warning: #d97706;
+  --semantic-danger: #dc2626;
+  --rail-width: 13.5rem;
+  --rail-width-collapsed: 4.5rem;
+  --copilot-width: 320px;
+}
+
+html, body {
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background-color: var(--surface-base);
+  color: var(--text-primary);
+}
+
+.markdown-body h1 { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+.markdown-body h1 + p { text-align: center; color: #475569; margin-bottom: 12px; }
+.markdown-body h2 { font-size: 16px; font-weight: 700; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+.markdown-body p, .markdown-body li { margin-bottom: 4px; line-height: 1.55; }
+.markdown-body ol { padding-left: 0; list-style-position: inside; }
+.markdown-body hr { border: none; border-top: 1px solid #cbd5e1; margin: 6px 0; }
+.markdown-body strong { color: #0f172a; }
+.markdown-body ins { background: #dcfce7; color: #166534; text-decoration: none; padding: 0 2px; }
+.markdown-body del { background: #fee2e2; color: #b91c1c; padding: 0 2px; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.knowledge-section-prose h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: var(--text-primary);
+}
+.knowledge-section-prose p,
+.knowledge-section-prose li {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0.35rem 0;
+}
+.knowledge-section-prose ul {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.knowledge-section-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 0.75rem 0;
+}
+.knowledge-section-prose th,
+.knowledge-section-prose td {
+  border: 1px solid var(--border-subtle);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+.knowledge-section-prose th {
+  background: var(--surface-base);
+  font-weight: 600;
+}
+.knowledge-section-prose blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+}
