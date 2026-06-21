@@ -11,7 +11,7 @@ from app.services.jd_analyzer import analyze_jd
 from app.services.knowledge_builder import audit_knowledge, expand_star, init_from_resume
 from app.services.match_analyzer import analyze_match
 from app.services.resume_density import assess_density
-from app.services.resume_finalizer import finalize_resume
+from app.services.resume_from_knowledge import build_resume_from_knowledge
 from app.services.session_store import store
 from app.services.suggestion_apply import apply_suggestion_status
 from app.services.session_sync import refresh_match
@@ -56,6 +56,8 @@ async def execute_tool(
         return await _tool_expand_star(sess, action_input)
     if action == "audit_knowledge":
         return await _tool_audit_knowledge(sess)
+    if action == "build_resume_from_knowledge":
+        return await _tool_build_resume_from_knowledge(sess, client_id, action_input)
     if action == "analyze_jd":
         return await _tool_analyze_jd(sess)
     if action == "analyze_match":
@@ -90,6 +92,8 @@ def _risk_message(action: str, action_input: dict, sess: Session) -> str:
         return "定稿将锁定当前可导出版本，需您确认"
     if action == "prepare_export":
         return "导出 PDF 需您确认"
+    if action == "build_resume_from_knowledge":
+        return "将根据知识库重新生成工作稿简历，会覆盖当前左侧预览内容"
     return "该操作需您确认"
 
 
@@ -107,6 +111,28 @@ def _tool_get_state(sess: Session) -> dict:
         "resume_chars": len(sess.current_resume_md),
         "density": density,
         "jd_role": sess.jd_analysis.role if sess.jd_analysis else "",
+    }
+
+
+async def _tool_build_resume_from_knowledge(
+    sess: Session, client_id: str, action_input: dict
+) -> dict:
+    try:
+        result = await build_resume_from_knowledge(
+            sess,
+            knowledge_base=action_input.get("content") or "",
+            client_id=client_id,
+            regenerate_suggestions=action_input.get("regenerate_suggestions", True),
+        )
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    chars = len(result.get("markdown") or "")
+    n = result.get("suggestions_count", 0)
+    return {
+        "ok": True,
+        "chars": chars,
+        "suggestions_count": n,
+        "summary": f"已从知识库生成简历（约 {chars} 字）" + (f"，并生成 {n} 条建议" if n else ""),
     }
 
 
@@ -188,6 +214,7 @@ async def _tool_generate_suggestions(sess: Session) -> dict:
     )
     sess.suggestions = suggestions
     sess.status = "suggestions_ready"
+    mark_finalize_stale(sess)
     store.update(sess)
     density = assess_density(sess.current_resume_md)
     return {
@@ -199,7 +226,7 @@ async def _tool_generate_suggestions(sess: Session) -> dict:
 
 
 async def _tool_review_suggestions(sess: Session, policy: str) -> dict:
-    pending = [s for s in sess.suggestions if s.status == "pending"]
+    pending = [s for s in sess.suggestions if s.status in ("pending", "adjusted")]
     if not pending:
         return {"ok": True, "skipped": True, "reason": "无待处理建议"}
 

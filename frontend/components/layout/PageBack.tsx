@@ -1,25 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
-export default function PageBack({
-  href,
-  label,
-}: {
-  href?: string;
-  label: string;
-}) {
-  const router = useRouter();
-
+export default function PageBack({ href, label }: { href: string; label?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => (href ? router.push(href) : router.back())}
-      className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-4"
     >
-      <ChevronLeft size={16} />
-      {label}
-    </button>
+      <ArrowLeft size={14} /> {label ?? "返回"}
+    </Link>
   );
 }

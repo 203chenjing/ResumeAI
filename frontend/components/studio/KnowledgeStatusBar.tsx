@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { countKnowledgeFacts } from "@/lib/knowledgeTopics";
 import { getClientId } from "@/lib/userMemory";
 import { ROUTES } from "@/lib/navigation";
+import { copy } from "@/lib/copy";
 
 export default function KnowledgeStatusBar() {
   const [facts, setFacts] = useState(0);
@@ -26,21 +27,21 @@ export default function KnowledgeStatusBar() {
   const completeness = facts === 0 ? 0 : Math.min(100, Math.round((facts / 20) * 100));
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container)] text-sm">
-      <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-[var(--radius-md)] border border-[var(--border-faint)] bg-[var(--surface-container)] text-sm"
+      style={{ boxShadow: "var(--shadow-sm)" }}
+    >
+      <div className="flex items-center gap-2.5 text-[var(--text-secondary)]">
         <BookOpen size={16} className="text-[var(--primary)]" />
         <span>
-          知识库约 {completeness}% 完整 · {facts} 条事实
+          {copy.knowledgeBar.completeness(completeness, facts)}
           {pending > 0 && (
-            <span className="text-[var(--semantic-warning)]"> · {pending} 条待确认</span>
+            <span className="text-[var(--semantic-warning)]"> · {copy.knowledgeBar.pending(pending)}</span>
           )}
         </span>
       </div>
-      <Link
-        href={ROUTES.assets}
-        className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline font-medium"
-      >
-        去完善 <ChevronRight size={14} />
+      <Link href={ROUTES.assets} className="text-link inline-flex items-center gap-0.5">
+        {copy.knowledgeBar.improve}
+        <ChevronRight size={14} />
       </Link>
     </div>
   );

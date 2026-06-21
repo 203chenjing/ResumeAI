@@ -11,6 +11,7 @@ import {
   type PendingMarkerItem,
 } from "@/lib/knowledgePending";
 import { Check, Loader2, SkipForward, Sparkles, X } from "lucide-react";
+import { copy } from "@/lib/copy";
 
 type Props = {
   content: string;
@@ -181,9 +182,9 @@ export default function KnowledgePendingWorkspace({
             <article
               key={item.id}
               id={`pending-item-sink-${item.id}`}
-              className="p-4 rounded-xl border border-violet-200 bg-violet-50/40 space-y-2"
+              className="p-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary-muted)]/40 space-y-2"
             >
-              <div className="text-xs text-violet-700">来源：{item.source || "改稿建议"}</div>
+              <div className="text-xs text-[var(--primary)]">来源：{item.source || copy.knowledge.sourceEdit}</div>
               {item.original_text && (
                 <p className="text-xs text-[var(--text-disabled)] line-through">
                   原：{item.original_text.slice(0, 120)}

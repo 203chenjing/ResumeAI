@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { PatternInsights, Reminder, UserProfile } from "@/lib/types";
 import { BarChart3, Bell, User } from "lucide-react";
+import { ROUTES } from "@/lib/navigation";
+import { copy } from "@/lib/copy";
 
 export default function InsightsPage() {
   const [patterns, setPatterns] = useState<PatternInsights | null>(null);
@@ -38,111 +40,114 @@ export default function InsightsPage() {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        <h1 className="text-2xl font-bold">求职洞察</h1>
+    <main className="page-shell space-y-6">
+      <h1 className="page-title">{copy.insights.title}</h1>
 
-        <section className="bg-white border rounded-xl p-5">
-          <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <User size={18} /> 用户档案
-          </h2>
-          {profile && (
-            <div className="grid md:grid-cols-2 gap-3 text-sm">
-              <input
-                className="border rounded-lg px-3 py-2"
-                placeholder="姓名"
-                value={profile.display_name}
-                onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-              />
-              <input
-                className="border rounded-lg px-3 py-2"
-                placeholder="学校"
-                value={profile.school}
-                onChange={(e) => setProfile({ ...profile, school: e.target.value })}
-              />
-              <input
-                className="border rounded-lg px-3 py-2"
-                placeholder="专业"
-                value={profile.major}
-                onChange={(e) => setProfile({ ...profile, major: e.target.value })}
-              />
-              <input
-                className="border rounded-lg px-3 py-2"
-                type="number"
-                placeholder="周投递上限"
-                value={profile.weekly_apply_limit}
-                onChange={(e) =>
-                  setProfile({ ...profile, weekly_apply_limit: Number(e.target.value) })
-                }
-              />
-              <input
-                className="border rounded-lg px-3 py-2"
-                type="number"
-                placeholder="最低匹配分门槛"
-                value={profile.min_match_score}
-                onChange={(e) =>
-                  setProfile({ ...profile, min_match_score: Number(e.target.value) })
-                }
-              />
-              <button
-                type="button"
-                onClick={saveProfile}
-                disabled={saving}
-                className="md:col-span-2 py-2 bg-blue-600 text-white rounded-lg"
+      <section className="surface-card p-5">
+        <h2 className="font-semibold flex items-center gap-2 mb-4 text-[var(--text-primary)]">
+          <User size={18} /> {copy.insights.profile}
+        </h2>
+        {profile && (
+          <div className="grid md:grid-cols-2 gap-3 text-sm">
+            <input
+              className="input-field"
+              placeholder={copy.insights.fields.name}
+              value={profile.display_name}
+              onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+            />
+            <input
+              className="input-field"
+              placeholder={copy.insights.fields.school}
+              value={profile.school}
+              onChange={(e) => setProfile({ ...profile, school: e.target.value })}
+            />
+            <input
+              className="input-field"
+              placeholder={copy.insights.fields.major}
+              value={profile.major}
+              onChange={(e) => setProfile({ ...profile, major: e.target.value })}
+            />
+            <input
+              className="input-field"
+              type="number"
+              placeholder={copy.insights.fields.weeklyLimit}
+              value={profile.weekly_apply_limit}
+              onChange={(e) =>
+                setProfile({ ...profile, weekly_apply_limit: Number(e.target.value) })
+              }
+            />
+            <input
+              className="input-field"
+              type="number"
+              placeholder={copy.insights.fields.minMatch}
+              value={profile.min_match_score}
+              onChange={(e) =>
+                setProfile({ ...profile, min_match_score: Number(e.target.value) })
+              }
+            />
+            <button
+              type="button"
+              onClick={saveProfile}
+              disabled={saving}
+              className="md:col-span-2 btn-primary justify-center py-2.5"
+            >
+              {saving ? copy.insights.saving : copy.insights.saveProfile}
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="surface-card p-5">
+        <h2 className="font-semibold flex items-center gap-2 mb-4 text-[var(--text-primary)]">
+          <Bell size={18} /> {copy.insights.reminders}
+        </h2>
+        {reminders.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)]">{copy.insights.noReminders}</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {reminders.map((r, i) => (
+              <li
+                key={i}
+                className={`p-3 rounded-lg border ${
+                  r.urgency === "high"
+                    ? "border-red-200 bg-red-50"
+                    : "border-[var(--border-subtle)] bg-[var(--surface-base)]"
+                }`}
               >
-                {saving ? "保存中…" : "保存档案"}
-              </button>
-            </div>
-          )}
-        </section>
+                <span className="font-medium text-[var(--text-primary)]">{r.company}</span>
+                <span className="text-[var(--text-secondary)]"> · {r.role} — {r.message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-        <section className="bg-white border rounded-xl p-5">
-          <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <Bell size={18} /> 跟进提醒
-          </h2>
-          {reminders.length === 0 ? (
-            <p className="text-sm text-slate-500">暂无待办提醒</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {reminders.map((r, i) => (
-                <li
-                  key={i}
-                  className={`p-3 rounded-lg border ${
-                    r.urgency === "high" ? "border-red-200 bg-red-50" : "border-slate-100"
-                  }`}
-                >
-                  <span className="font-medium">{r.company}</span> · {r.role} — {r.message}
-                </li>
+      <section className="surface-card p-5">
+        <h2 className="font-semibold flex items-center gap-2 mb-4 text-[var(--text-primary)]">
+          <BarChart3 size={18} /> {copy.insights.patterns}
+        </h2>
+        {patterns && (
+          <>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              {copy.insights.rejectionRate((patterns.rejection_rate * 100).toFixed(0), patterns.total)}
+            </p>
+            <ul className="text-sm space-y-1 mb-4 text-[var(--text-primary)]">
+              {patterns.insights.map((t) => (
+                <li key={t} className="text-[var(--text-secondary)]">· {t}</li>
               ))}
             </ul>
-          )}
-        </section>
-
-        <section className="bg-white border rounded-xl p-5">
-          <h2 className="font-semibold flex items-center gap-2 mb-4">
-            <BarChart3 size={18} /> 拒信模式分析
-          </h2>
-          {patterns && (
-            <>
-              <p className="text-sm text-slate-600 mb-3">
-                拒信率 {(patterns.rejection_rate * 100).toFixed(0)}% · 共 {patterns.total} 条记录
-              </p>
-              <ul className="text-sm space-y-1 mb-4">
-                {patterns.insights.map((t) => (
-                  <li key={t}>· {t}</li>
-                ))}
-              </ul>
-              <div className="p-3 bg-blue-50 rounded-lg text-sm">
-                <div className="font-medium mb-1">策略建议</div>
-                {patterns.recommendations.map((t) => (
-                  <div key={t}>→ {t}</div>
-                ))}
-              </div>
-              <Link href="/tracker" className="inline-block mt-4 text-sm text-blue-600 hover:underline">
-                查看投递追踪 →
-              </Link>
-            </>
-          )}
-        </section>
-      </main>
+            <div className="p-3 bg-[var(--primary-muted)] rounded-lg text-sm">
+              <div className="font-medium mb-1 text-[var(--text-primary)]">{copy.insights.strategy}</div>
+              {patterns.recommendations.map((t) => (
+                <div key={t} className="text-[var(--text-secondary)]">→ {t}</div>
+              ))}
+            </div>
+            <Link href={ROUTES.tracker} className="inline-block mt-4 text-link">
+              {copy.insights.viewTracker} →
+            </Link>
+          </>
+        )}
+      </section>
+    </main>
   );
 }

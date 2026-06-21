@@ -195,6 +195,32 @@ export const api = {
     });
   },
 
+  buildResumeFromKnowledge(body: {
+    session_id: string;
+    knowledge_base?: string;
+    client_id?: string;
+    regenerate_suggestions?: boolean;
+  }) {
+    return request<
+      ApiResponse<{
+        markdown: string;
+        knowledge_base_md: string;
+        suggestions_count: number;
+        match: MatchResult | null;
+        suggestions: Suggestion[];
+        density: { char_count: number; status: string; message: string };
+        finalize_status: string;
+      }>
+    >("/api/build-resume-from-knowledge", {
+      method: "POST",
+      body: JSON.stringify({
+        regenerate_suggestions: true,
+        client_id: "default",
+        ...body,
+      }),
+    });
+  },
+
   updateSuggestionStatus(
     session_id: string,
     suggestion_id: string,
@@ -244,10 +270,44 @@ export const api = {
           page_count: number;
           skill_issues?: string[];
           layout_issues?: string[];
+          bottom_gap_mm?: number | null;
+          density?: { char_count: number; status: string; message: string };
         };
+        emphasis_phrases?: string[];
         finalize_status: "draft" | "finalized" | "stale";
       }>
     >("/api/finalize-resume", {
+      method: "POST",
+      body: JSON.stringify({ session_id }),
+    });
+  },
+
+  unfinalizeResume(session_id: string) {
+    return request<
+      ApiResponse<{
+        finalize_status: "draft" | "finalized" | "stale";
+        current_resume_md: string;
+      }>
+    >("/api/unfinalize-resume", {
+      method: "POST",
+      body: JSON.stringify({ session_id }),
+    });
+  },
+
+  exportLayoutCheck(session_id: string) {
+    return request<
+      ApiResponse<{
+        ok: boolean;
+        page_count: number;
+        page_passed: boolean;
+        bottom_gap_mm?: number | null;
+        char_count?: number;
+        density_status?: string;
+        density_message?: string;
+        layout_issues?: string[];
+        skill_issues?: string[];
+      }>
+    >("/api/export-layout-check", {
       method: "POST",
       body: JSON.stringify({ session_id }),
     });

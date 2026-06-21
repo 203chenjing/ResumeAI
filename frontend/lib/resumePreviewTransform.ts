@@ -1,6 +1,4 @@
 /** 与 PDF 导出器一致：教育/实习表头行 → 三列 HTML */
-const HEADER_LONG_NAME_THRESHOLD = 13;
-
 const ROLE_HINT =
   /(实习生|工程师|经理|专员|顾问|管培|分析师|设计师|开发|产品|运营|方向|管培生)/;
 const CITY_NAMES = new Set([
@@ -97,12 +95,31 @@ function mergeHeaderContinuations(md: string): string {
   const lines = md.split("\n");
   const out: string[] = [];
   const headerRe =
-    /^\*\*([^*]+)\*\*\s{2,}(.+?)\s{2,}(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$/;
+    /^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$/;
   const suffixRe = /^[\(（][^)）]+[\)）]?\s*有限公司$|^有限公司$/;
+  const schoolOnlyRe = /^\*\*([^*]+)\*\*\s*$/;
+  const tailWithDateRe =
+    /^(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$/;
   let i = 0;
   while (i < lines.length) {
     let line = lines[i];
     const stripped = line.trim();
+    const schoolOnly = schoolOnlyRe.exec(stripped);
+    if (schoolOnly && i + 1 < lines.length) {
+      const nxt = lines[i + 1].trim();
+      const tail = tailWithDateRe.exec(nxt);
+      if (
+        tail &&
+        !nxt.startsWith("**") &&
+        !nxt.startsWith("#") &&
+        !nxt.startsWith("-") &&
+        !nxt.startsWith("*") &&
+        !/^\d+\./.test(nxt)
+      ) {
+        line = `**${schoolOnly[1]}**  ${tail[1].trim()}  ${tail[2].trim()}`;
+        i += 1;
+      }
+    }
     const m = stripped.startsWith("**") ? headerRe.exec(stripped) : null;
     if (m && i + 1 < lines.length) {
       const nxt = lines[i + 1].trim();
@@ -136,10 +153,9 @@ export function transformHeaderRows(md: string): string {
 
 function headerRowHtml(left: string, mid: string, right: string): string {
   const leftClean = normalizeHeaderLeft(left);
-  const longCls = leftClean.length > HEADER_LONG_NAME_THRESHOLD ? " long-left" : "";
   return (
     `<div class="resume-header-row">` +
-    `<span class="col-left${longCls}"><strong>${leftClean}</strong></span>` +
+    `<span class="col-left"><strong>${leftClean}</strong></span>` +
     `<span class="col-mid">${mid}</span>` +
     `<span class="col-right">${right}</span>` +
     `</div>`
@@ -150,15 +166,22 @@ function parseHeaderLine(line: string): string | null {
   const stripped = line.trim();
   if (!stripped.startsWith("**")) return null;
 
-  const exp = /^\*\*([^*]+)\*\*\s{2,}(.+?)\s{2,}(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$/.exec(
-    stripped
-  );
+  const exp =
+    /^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$/.exec(stripped);
   if (exp) return headerRowHtml(exp[1], exp[2].trim(), exp[3].trim());
 
-  const edu = /^\*\*([^*]+)\*\*\s{2,}(.+?)[，,]\s*(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$/.exec(
-    stripped
-  );
-  if (edu) return headerRowHtml(edu[1], edu[2].trim(), edu[3].trim());
+  const eduComma =
+    /^\*\*([^*]+)\*\*\s+(.+?)[，,]\s*(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$/.exec(stripped);
+  if (eduComma) return headerRowHtml(eduComma[1], eduComma[2].trim(), eduComma[3].trim());
+
+  const edu =
+    /^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$/.exec(stripped);
+  if (
+    edu &&
+    /学院|硕士|学士|大学|本科|研究生/.test(edu[2])
+  ) {
+    return headerRowHtml(edu[1], edu[2].trim(), edu[3].trim());
+  }
 
   return null;
 }

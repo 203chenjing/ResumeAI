@@ -1,7 +1,8 @@
 "use client";
 
-import { Bot, Loader2, Send } from "lucide-react";
+import { Sparkles, Loader2, Send } from "lucide-react";
 import { ReactNode, useState } from "react";
+import { copy } from "@/lib/copy";
 
 export interface CopilotMessage {
   role: "user" | "assistant";
@@ -27,7 +28,7 @@ export default function CopilotPanel({
   contextLabel,
   messages,
   quickChips = [],
-  placeholder = "输入指令…",
+  placeholder,
   streaming = false,
   onSend,
   onQuickChip,
@@ -35,6 +36,8 @@ export default function CopilotPanel({
   footer,
 }: Props) {
   const [input, setInput] = useState("");
+  const title = mode === "knowledge" ? copy.knowledge.copilotTitle : copy.edit.assistant;
+  const emptyHint = mode === "knowledge" ? copy.knowledge.copilotIntro : copy.edit.assistantHint;
 
   function submit() {
     const t = input.trim();
@@ -47,8 +50,8 @@ export default function CopilotPanel({
     <div className="h-full flex flex-col bg-[var(--surface-container)] border-l border-[var(--border-subtle)]">
       <div className="shrink-0 px-3 py-2 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
-          <Bot size={16} className="text-[var(--primary)]" />
-          {mode === "knowledge" ? "知识库 Copilot" : "改稿 Copilot"}
+          <Sparkles size={16} className="text-[var(--primary)]" />
+          {title}
         </div>
         {contextLabel && (
           <div className="mt-1 text-xs px-2 py-0.5 rounded-full bg-[var(--surface-base)] text-[var(--text-secondary)] inline-block truncate max-w-full">
@@ -75,18 +78,14 @@ export default function CopilotPanel({
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
         {messages.length === 0 && (
-          <p className="text-xs text-[var(--text-disabled)] leading-relaxed">
-            {mode === "knowledge"
-              ? "可导入简历事实、补全 STAR、检查待确认项。"
-              : "可要求压缩一页、加强关键词或前往导出。"}
-          </p>
+          <p className="text-xs text-[var(--text-disabled)] leading-relaxed">{emptyHint}</p>
         )}
         {messages.map((m, i) => (
           <div
             key={i}
             className={`text-sm rounded-lg px-3 py-2 ${
               m.role === "user"
-                ? "bg-[var(--primary)]/10 text-[var(--text-primary)] ml-4"
+                ? "bg-[var(--primary-muted)] text-[var(--text-primary)] ml-4"
                 : "bg-[var(--surface-base)] text-[var(--text-secondary)] mr-2"
             }`}
           >
@@ -99,7 +98,7 @@ export default function CopilotPanel({
                     type="button"
                     disabled={streaming}
                     onClick={() => onMessageAction?.(a.id)}
-                    className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50"
+                    className="text-xs px-2.5 py-1 rounded-full bg-[var(--primary-muted)] text-[var(--primary)] hover:opacity-90 disabled:opacity-50"
                   >
                     {a.label}
                   </button>
@@ -110,7 +109,7 @@ export default function CopilotPanel({
         ))}
         {streaming && (
           <div className="flex items-center gap-2 text-xs text-[var(--text-disabled)]">
-            <Loader2 size={12} className="animate-spin" /> 思考中…
+            <Loader2 size={12} className="animate-spin" /> {copy.copilot.thinking}
           </div>
         )}
       </div>
@@ -123,7 +122,7 @@ export default function CopilotPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
-            placeholder={placeholder}
+            placeholder={placeholder || copy.copilot.sendPlaceholder}
             disabled={streaming}
             className="flex-1 text-sm px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-base)] outline-none focus:ring-1 focus:ring-[var(--primary)]"
           />

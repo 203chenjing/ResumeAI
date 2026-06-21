@@ -1,279 +1,204 @@
-# ResumeAI · AI 简历修改
+# ResumeAI
 
-> 面向求职者的 JD 驱动简历智能修改 Web 应用
-> 上传简历、粘贴岗位 JD，AI 生成可审阅的修改建议并导出 A4 单页 PDF
+**把简历改到能投** — 面向求职者的 AI 简历工作台：针对目标岗位改稿、一页 PDF 直接投递，并串联岗位发现与投递追踪。
 
----
-
-## ✨ 核心能力
-
-- **简历智能解析**：PDF / DOCX / Markdown / TXT 多格式上传，AI 结构化提取
-- **JD 深度分析**：识别核心要求、加分项、关键词、行业术语 + **JD 真实性评分**（防假招聘）
-- **匹配度评估**：5 维度量化评分（核心技能/经验/关键词/教育/软技能） + 差距分析
-- **逐段修改建议**：每条建议含「原文 → 修改后 → 修改原因 → JD 匹配点」
-- **双重多轮交互**：
-  - **审批模式** — 接受 / 拒绝 / 调整每条建议
-  - **聊天模式** — 自然语言指令（如「整体压缩到一页」）
-- **A4 单页 PDF 导出**：标准版 / 修改痕迹版（含 diff 高亮）
-- **真实性优先**：所有修改基于真实事实，缺数据自动占位 `[待补充]`，绝不编造
+[![CI](https://github.com/203chenjing/ResumeAI/actions/workflows/ci.yml/badge.svg)](https://github.com/203chenjing/ResumeAI/actions/workflows/ci.yml)
 
 ---
 
-## 🚀 快速启动
+## 为什么选 ResumeAI？
 
-### 前置依赖
+市面上很多「AI 改简历」只做一件事：把简历扔给模型，直接改一版。ResumeAI 的设计思路不同 — **以知识库为素材源、以岗位为压缩目标、以你的确认为最终裁决**，把「改简历」做成一条可重复、可追踪的求职流水线。
+
+### 核心优势
+
+| 优势 | 说明 |
+|------|------|
+| **一站闭环** | 工作台 → 准备 → 改稿 → 导出 PDF → 记入投递追踪 → 面试准备，不必在多个工具间来回倒腾 |
+| **知识库驱动** | 经历素材沉淀在知识库，换岗位时从知识库生成投递版简历，而不是每次从零改 Word |
+| **一键改稿 + 可见进度** | 分析岗位 → 算匹配度 → 出建议，三步链路一次完成，进度实时展示 |
+| **人控 AI、不瞎编** | 每条建议可采纳 / 跳过 / 微调；缺数据标 `[待补充]`，不伪造经历与指标 |
+| **岗位可信度 + 匹配评分** | JD 真实性评分防假招聘；五维匹配 + 差距分析，知道差在哪、先改什么 |
+| **GUI + LUI 双模交互** | 列表点选为主路径，对话微调为辅；助手可驱动左侧预览与建议列表同步更新 |
+| **投递级 PDF** | A4 单页、关键词加粗、版面留白检测、证件照裁剪；支持标准版 / 修改痕迹版 |
+| **校招场景增强** | 岗位发现与对比、飞书表同步、投递看板、拒信模式洞察、模拟面试 |
+| **工程可验证** | 后端 **102+** 单元测试，CI 自动跑 pytest + 冒烟 + 前端构建 |
+
+### 和「只聊天改简历」的差异
+
+```
+普通工具：  上传简历 → AI 直接改 → 下载（难复盘、难复用、难追踪）
+
+ResumeAI：  知识库积累素材
+              ↓
+            贴岗位描述 → 匹配分析 → 逐条建议确认
+              ↓
+            定稿导出 PDF → 投递追踪 → 面试准备
+```
+
+---
+
+## 功能一览
+
+- **简历解析**：PDF / DOCX / Markdown / TXT
+- **岗位分析**：核心要求、关键词、行业术语、可信度评分
+- **匹配评估**：雷达图 + 差距列表 + 投递建议
+- **修改建议**：措辞 / STAR 改写 / 关键词嵌入 / 结构调整，附原因与岗位匹配点
+- **知识库**：结构化编辑 + 整理助手（导入、补全、核对待填项）
+- **从知识库生成简历**：按当前岗位从素材库压缩出一页投递版
+- **导出**：定稿闸门、撤销定稿、版面检查、自动记入投递
+- **岗位**：筛选、对比、找岗助手、求职偏好
+- **投递追踪**：看板 / 表格、转化漏斗、跟进提醒
+- **求职洞察**：档案、拒信模式、策略建议
+
+---
+
+## 快速启动
+
+### 依赖
 
 | 工具 | 版本 |
-| ---- | ---- |
+|------|------|
 | Python | 3.11+ |
 | Node.js | 20+ |
-| DeepSeek API Key | https://platform.deepseek.com |
+| DeepSeek API Key | [platform.deepseek.com](https://platform.deepseek.com) |
 
-### 方式 1：一键脚本（推荐）
+### 一键启动（推荐）
 
-**Windows:**
+**Windows**
+
 ```bat
-cd D:\需求文档\AI简历修改项目\demo
 start.bat
 ```
 
-**Linux / Mac:**
+**Linux / macOS**
+
 ```bash
-cd demo
 chmod +x start.sh
 ./start.sh
 ```
 
-首次运行会要求填写 `backend/.env` 中的 `DEEPSEEK_API_KEY`。
+首次运行会提示配置 `backend/.env` 中的 `DEEPSEEK_API_KEY`。
 
-### 方式 2：Docker Compose
+### 手动启动
 
-```bash
-cd demo
-cp backend/.env.example backend/.env
-# 编辑 backend/.env 填写 DEEPSEEK_API_KEY
-docker compose up -d
-```
+**后端**
 
-### 方式 3：手动启动
-
-**后端**：
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # Linux/Mac
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-cp .env.example .env             # 编辑填入 DEEPSEEK_API_KEY
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env        # 填入 DEEPSEEK_API_KEY
+python run_server.py        # http://localhost:8000
 ```
 
-**前端**（另开终端）：
+**前端**
+
 ```bash
 cd frontend
 npm install
 cp .env.example .env.local
-npm run dev
+npm run dev                   # http://localhost:3000
 ```
 
-访问 `http://localhost:3000`，API 文档 `http://localhost:8000/docs`。
+API 文档：`http://localhost:8000/docs`
 
 ---
 
-## 🪟 Windows WeasyPrint 安装提示
+## 推荐使用路径
 
-WeasyPrint 在 Windows 需要 GTK3 运行库：
-1. 下载安装 https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
-2. 重启终端后 `pip install weasyprint`
-
-如果安装困难，可临时改用 `playwright + Chromium` 渲染（修改 `services/pdf_exporter.py`）。
+1. **工作台** — 继续上次改稿，或「开始改简历」
+2. **准备** — 上传简历 + 粘贴岗位描述 → **一键改稿**
+3. **改稿** — 预览左、建议中、可选「微调」右；可「知识库生成」刷新岗位版
+4. **导出** — 确认定稿 → 下载 PDF（自动记入投递追踪）
+5. **（可选）知识库 / 岗位 / 追踪** — 长期沉淀素材、选岗、跟进进度
 
 ---
 
-## 🗺 前端路由（Hub + Studio）
+## 前端路由
 
 | 路径 | 说明 |
-| ---- | ---- |
-| `/` | Hub 工作台（继续改稿、待办、概览） |
-| `/assets` | 知识库（三栏 + AI Copilot） |
-| `/jobs` | 岗位发现（「用此 JD 改简历」） |
+|------|------|
+| `/` | 工作台 |
+| `/studio/prepare` | 准备（上传 + 岗位 + 一键改稿） |
+| `/studio/edit` | 改稿（预览 / 建议 / 微调） |
+| `/studio/export` | 导出（定稿 + PDF） |
+| `/assets` | 知识库 |
+| `/jobs` | 岗位发现 |
 | `/tracker` | 投递追踪 |
 | `/insights` | 求职洞察 |
-| `/studio/prepare` | 改稿 · 准备（上传 + JD + 匹配） |
-| `/studio/edit` | 改稿 · 编辑（预览 / 建议 / Copilot 三栏） |
-| `/studio/export` | 改稿 · 导出（定稿 + 照片 + PDF + 记投递） |
 
-**兼容重定向**：`/upload` → `/studio/prepare`，`/edit` → `/studio/edit`，`/export` → `/studio/export`，`/knowledge` → `/assets`。
-
-**快捷键**：`⌘K` / `Ctrl+K` 命令面板；Studio 编辑页 `⌘J` / `Ctrl+J` 折叠 Copilot。
+兼容重定向：`/upload` → prepare，`/edit` → edit，`/export` → export，`/knowledge` → assets。
 
 ---
 
-## 🗂 目录结构
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 前端 | Next.js 14 · React 18 · Zustand · Tailwind |
+| 后端 | FastAPI · Pydantic · DeepSeek API |
+| PDF | WeasyPrint / Playwright · 自研 Markdown → A4 排版 |
+| 测试 | pytest（102+）· GitHub Actions CI |
+
+产品设计参考 Google Material 信息架构：**单一主路径、渐进披露、AI 提案 + 人决策**。文案与样式集中在 `frontend/lib/copy.ts` 与 `globals.css` 设计 token。
+
+---
+
+## 目录结构
 
 ```
-demo/
-├── README.md                          # 本文件
-├── docker-compose.yml                 # 一键起 backend + frontend
-├── start.bat / start.sh               # 一键启动脚本
-│
-├── backend/                           # FastAPI 后端
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── app/
-│   │   ├── main.py                    # FastAPI 入口
-│   │   ├── config.py                  # 配置
-│   │   ├── routers/                   # 8 个 REST 路由
-│   │   │   ├── resume.py              # POST /api/parse-resume
-│   │   │   ├── jd.py                  # POST /api/analyze-jd
-│   │   │   ├── analysis.py            # POST /api/analyze-match, /api/generate-suggestions
-│   │   │   ├── suggestion.py          # POST /api/adjust-suggestion, /api/update-suggestion-status
-│   │   │   ├── chat.py                # POST /api/chat (SSE)
-│   │   │   ├── export.py              # POST /api/export-pdf, /api/preview-pdf
-│   │   │   └── session.py             # GET /api/session/{id}
-│   │   ├── services/                  # 业务逻辑
-│   │   │   ├── llm_client.py          # LLM 客户端封装
-│   │   │   ├── parser.py              # 简历解析
-│   │   │   ├── jd_analyzer.py         # JD 分析
-│   │   │   ├── match_analyzer.py      # 匹配度评分
-│   │   │   ├── suggestion_engine.py   # 修改建议生成
-│   │   │   ├── chat_engine.py         # 流式聊天
-│   │   │   ├── pdf_exporter.py        # 调用 PDF 工具链
-│   │   │   ├── md_builder.py          # 结构化 → Markdown 重建
-│   │   │   └── session_store.py       # 内存会话管理
-│   │   ├── models/schemas.py          # Pydantic 数据模型
-│   │   ├── prompts/                   # 6 套 Prompt 模板
-│   │   │   ├── parse_resume.py
-│   │   │   ├── jd_analysis.py
-│   │   │   ├── match_analysis.py
-│   │   │   ├── suggestions.py
-│   │   │   ├── chat_system.py
-│   │   │   └── adjust.py
-│   │   └── utils/file_handler.py
-│   └── tools/                         # PDF 工具链
-│       ├── markdown_resume_to_pdf.py  # MD → A4 单页 PDF
-│       ├── check_resume_skill.py      # 格式自检
-│       └── crop_profile_photo.py      # 照片裁剪
-│
-├── frontend/                          # Next.js 14 前端
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                   # 首页
-│   │   ├── upload/page.tsx            # → redirect /studio/prepare
-│   │   ├── edit/page.tsx              # → redirect /studio/edit
-│   │   ├── export/page.tsx            # → redirect /studio/export
-│   │   ├── studio/prepare|edit|export # Studio 改稿流程
-│   │   ├── assets/page.tsx            # 知识库 Object 视图
-│   │   └── knowledge/page.tsx         # → redirect /assets
-│   ├── components/
-│   │   ├── layout/{AppShell,NavRail,TopBar,StudioHeader,CommandPalette}.tsx
-│   │   ├── hub/{ContinueCard,TodoList,GlanceStats}.tsx
-│   │   ├── studio/{PrepareView,EditView,ExportView}.tsx
-│   │   ├── copilot/{CopilotPanel,KnowledgeCopilot}.tsx
-│   │   └── edit/{ResumePreview,SuggestionPanel,SuggestionCard,ChatPanel}.tsx
-│   ├── stores/useAppStore.ts          # Zustand 全局状态
-│   └── lib/{api,types}.ts
-│
-└── skills/                            # 辅助 Skill 文件（供 AI Coding 工具使用）
-    ├── resume-pdf-export/SKILL.md
-    └── jd-analyzer/SKILL.md
+ResumeAI/
+├── start.bat / start.sh          # 一键启动
+├── backend/                      # FastAPI
+│   ├── app/routers/              # REST + Agent 路由
+│   ├── app/services/             # 解析、匹配、建议、知识库、PDF…
+│   ├── app/prompts/              # Prompt 模板
+│   ├── tests/                    # 单元测试
+│   └── tools/                    # PDF 工具链
+├── frontend/                     # Next.js
+│   ├── app/                      # 页面路由
+│   ├── components/               # Studio / Hub / Copilot…
+│   └── lib/copy.ts               # 产品文案
+└── .github/workflows/ci.yml      # CI
 ```
 
-> 主 Skill 文件 `SKILL.md`（简历改写完整规范）位于 `D:\需求文档\AI简历修改项目\SKILL.md`，未复制到 demo 内，由后端 prompts 直接复用其规则。
-
 ---
 
-## 🎬 演示流程（评委视角）
+## 测试
 
-1. 双击 `start.bat`（首次需填 API Key 后再启动一次）
-2. 浏览器打开 `http://localhost:3000`
-3. 拖拽 `测试简历.pdf` → 自动解析
-4. 粘贴目标 JD → AI 分析需求 + 真实性评分
-5. 点击「开始 AI 修改」
-6. 编辑页：
-   - **左**：简历实时预览
-   - **中**：修改建议列表（接受/拒绝/调整）
-   - **右**：AI 对话（输入「整体压缩到一页」）
-7. 顶部「导出 PDF」→ 选择 标准版 / 修改痕迹版 → 下载
+```bash
+# 后端（无需 API Key）
+cd backend && pytest -q
 
----
-
-## 🧠 模型与 Prompt
-
-- **模型**：DeepSeek (`deepseek-chat`)，temperature=0.3，json_object 输出
-- **Prompt 体系**：6 套独立模板（解析/JD/匹配/建议/聊天/调整），核心规则源于 `SKILL.md` 中的 STAR 法则、JD 匹配规范、量化指标处理、不编造原则
-- **流式响应**：聊天接口走 SSE，前端 fetch + ReadableStream 解析
-- **会话**：内存字典，30 分钟无操作自动清理
-
----
-
-## 📄 API 接口
-
-| 路径 | 方法 | 说明 |
-| ---- | ---- | ---- |
-| `/api/parse-resume` | POST | 上传 + 解析简历 |
-| `/api/analyze-jd` | POST | JD 分析（含真实性） |
-| `/api/analyze-match` | POST | 匹配度评分 |
-| `/api/generate-suggestions` | POST | 生成修改建议 |
-| `/api/update-suggestion-status` | POST | 接受/拒绝/撤销 |
-| `/api/adjust-suggestion` | POST | 调整单条建议 |
-| `/api/chat` | POST (SSE) | 流式聊天 |
-| `/api/export-pdf` | POST | 导出 PDF |
-| `/api/preview-pdf` | POST | 生成 PDF 预览 |
-| `/api/download/{filename}` | GET | 下载 PDF |
-| `/api/session/{id}` | GET | 查询会话状态 |
-| `/api/knowledge-agent/init-from-resume` | POST | 从简历初始化知识库 |
-| `/api/knowledge-agent/expand-star` | POST | 补全 STAR 段落 |
-| `/api/knowledge-agent/audit` | POST | 审计知识库 |
-| `/api/knowledge-agent/chat` | POST | 知识库 Copilot 对话 |
-
-完整 OpenAPI 文档：`http://localhost:8000/docs`
-
----
-
-## 🔒 数据隐私
-
-- 简历内容仅存内存，**不持久化**
-- 30 分钟无操作自动清理
-- LLM 请求通过 HTTPS 直连 DeepSeek 官方接口
-- 不收集任何个人数据
-
----
-
-## 🛠 待用户配置
-
-- **DEEPSEEK_API_KEY**：填入 `backend/.env` 后启动
-- 可选：`backend/exports/` 是 PDF 输出目录
-- 可选：自定义模型 ID（默认 `deepseek-chat`，支持 `deepseek-reasoner` 切换）
-
----
-
-## 📝 说明
-
-本产品面向 C 端求职者使用。示例简历与知识库均为虚构占位内容，请勿将仓库内样例当作真实个人信息。
-
----
-
-## 🧪 测试
-
-确保产品可用：本地一键跑 **单元测试 + 冒烟 + 前端构建**（无需 LLM API Key）。
-
-```bat
-cd demo
-run_tests.bat
+# 前端
+cd frontend && npm run build
 ```
 
-| 层级 | 命令 | 需要 API Key |
-| ---- | ---- | ------------ |
-| 单元测试 | `cd backend && pytest` | 否 |
-| API 冒烟 | `python backend/scripts/smoke_test.py` | 否 |
-| 全流程 E2E | 先启动后端，再 `python backend/scripts/e2e_full_test.py` | 是 |
-| 前端 | `cd frontend && npm run lint && npm run build` | 否 |
+推送 `main` 分支时 GitHub Actions 自动执行 pytest、API 冒烟与前端构建。
 
-详细策略见 [docs/TESTING.md](docs/TESTING.md)；手工用例见上级目录 [测试文档.md](../测试文档.md)。
+---
 
-CI：推送 `demo/**` 变更时 GitHub Actions 自动跑 pytest + smoke + frontend build。
+## 配置说明
+
+| 变量 | 说明 |
+|------|------|
+| `DEEPSEEK_API_KEY` | 必填，LLM 调用 |
+| `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 可选，飞书岗位表同步 |
+
+勿将 `backend/.env` 提交到 Git。
+
+---
+
+## 数据与隐私
+
+- 简历与会话以服务端内存 + 本地 `client_id` 记忆为主，**不上传至第三方除 LLM 提供商外的云服务**
+- LLM 请求经 HTTPS 调用 DeepSeek 官方接口
+- 仓库内示例简历与知识库均为虚构占位，请勿当作真实个人信息
+
+---
+
+## License
+
+MIT（如仓库未单独声明，以实际 LICENSE 文件为准）

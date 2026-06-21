@@ -1,3 +1,5 @@
+import { copy } from "@/lib/copy";
+
 export interface ApplicationDecision {
   match_score: number;
   legitimacy_score: number;
@@ -9,8 +11,8 @@ export interface ApplicationDecision {
 
 const LEVEL_STYLE: Record<ApplicationDecision["level"], string> = {
   strong: "bg-green-50 border-green-200 text-green-800",
-  moderate: "bg-blue-50 border-blue-200 text-blue-800",
-  weak: "bg-slate-50 border-slate-200 text-slate-700",
+  moderate: "bg-[var(--primary-muted)] border-[var(--primary)]/20 text-[var(--primary)]",
+  weak: "bg-[var(--surface-base)] border-[var(--border-subtle)] text-[var(--text-secondary)]",
   risk: "bg-red-50 border-red-200 text-red-800",
 };
 
@@ -23,11 +25,11 @@ export default function ApplicationDecisionCard({
     <div className={`rounded-lg border p-4 ${LEVEL_STYLE[decision.level]}`}>
       <div className="font-semibold">{decision.label}</div>
       <div className="text-xs mt-1 opacity-90">
-        匹配 {decision.match_score} · JD 真实性 {decision.legitimacy_score}
+        {copy.match.scoreLine(decision.match_score, decision.legitimacy_score)}
       </div>
       {decision.top_gaps.length > 0 && (
         <div className="mt-2 text-xs">
-          <span className="font-medium">待补强：</span>
+          <span className="font-medium">{copy.match.topGaps}</span>
           {decision.top_gaps.join("、")}
         </div>
       )}

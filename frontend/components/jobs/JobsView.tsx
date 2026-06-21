@@ -31,11 +31,12 @@ import JobDigestPanel from "@/components/jobs/JobDigestPanel";
 import JobPreferencesPanel from "@/components/jobs/JobPreferencesPanel";
 import CareerCopilotPanel from "@/components/jobs/CareerCopilotPanel";
 import type { CrawlHealth } from "@/lib/types";
+import { copy } from "@/lib/copy";
 
 const PRIORITY_BADGE: Record<string, string> = {
   P0: "bg-red-100 text-red-700",
   P1: "bg-amber-100 text-amber-800",
-  P2: "bg-slate-100 text-slate-600",
+  P2: "bg-[var(--surface-base)] text-[var(--text-secondary)]",
 };
 
 const SOURCE_OPTIONS = [
@@ -228,15 +229,13 @@ export default function JobsView() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+    <main className="page-shell-wide">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Globe size={22} /> 岗位发现
+          <h1 className="page-title flex items-center gap-2">
+            <Globe size={22} className="text-[var(--primary)]" /> {copy.jobs.title}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            公司 / 职位 / 工作地 / 收录时间 · 高校来源会标注发布方
-          </p>
+          <p className="page-subtitle">{copy.jobs.subtitle}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
@@ -257,27 +256,27 @@ export default function JobsView() {
             type="button"
             onClick={crawl}
             disabled={crawling}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 btn-primary"
           >
             {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            刷新岗位
+            {copy.jobs.refresh}
           </button>
           {selected.size > 0 && (
             <a
               href={`/jobs/compare?ids=${Array.from(selected).join(",")}`}
-              className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm"
+              className="btn-primary px-4 py-2"
             >
-              对比 {selected.size} 个
+              {copy.jobs.compareSelected} ({selected.size})
             </a>
           )}
         </div>
       </div>
 
       {meta && (
-        <div className="mb-4 flex flex-wrap gap-3 text-xs text-slate-600">
-          <span className="px-2 py-1 bg-white border rounded-md">共 {meta.total} 条</span>
+        <div className="mb-4 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
+          <span className="px-2 py-1 surface-card text-xs">共 {meta.total} 条</span>
           {meta.last_crawled_at && (
-            <span className="px-2 py-1 bg-white border rounded-md">
+            <span className="px-2 py-1 surface-card text-xs">
               最近抓取 {formatDateShort(meta.last_crawled_at)}
             </span>
           )}
@@ -325,7 +324,7 @@ export default function JobsView() {
 
       <div className="mb-3 flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-disabled)]" />
           <input
             className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
             placeholder="搜索公司 / 职位 / 城市 / 标签"
@@ -368,7 +367,7 @@ export default function JobsView() {
             </option>
           ))}
         </select>
-        <label className="inline-flex items-center gap-1.5 text-sm text-slate-600 px-2">
+        <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] px-2">
           <input type="checkbox" checked={hideWeak} onChange={(e) => setHideWeak(e.target.checked)} />
           隐藏资讯/待补全
         </label>
@@ -382,7 +381,7 @@ export default function JobsView() {
           <button
             type="button"
             onClick={ingestWechat}
-            className="px-3 py-2 border rounded-lg text-sm flex items-center gap-1 hover:bg-slate-50"
+            className="px-3 py-2 border rounded-lg text-sm flex items-center gap-1 hover:bg-[var(--surface-base)]"
           >
             <Link2 size={14} /> 订阅
           </button>
@@ -390,18 +389,18 @@ export default function JobsView() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-400">
+        <div className="py-20 text-center text-[var(--text-disabled)]">
           <Loader2 className="animate-spin mx-auto" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center text-slate-500 bg-white border rounded-xl">
+        <div className="py-16 text-center text-[var(--text-secondary)] surface-card">
           暂无匹配岗位。可放宽筛选，或点击「刷新岗位」重新抓取。
         </div>
       ) : (
-        <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-600 text-xs">
+              <thead className="bg-[var(--surface-base)] text-[var(--text-secondary)] text-xs">
                 <tr>
                   <th className="w-8 px-3 py-2" />
                   <th className="text-left px-3 py-2 font-medium min-w-[100px]">用人单位</th>
@@ -421,7 +420,7 @@ export default function JobsView() {
                   return (
                     <tr
                       key={job.id}
-                      className={`border-t hover:bg-slate-50/80 ${selected.has(job.id) ? "bg-violet-50/50" : ""}`}
+                      className={`border-t hover:bg-[var(--surface-base)]/80 ${selected.has(job.id) ? "bg-[var(--primary-muted)]" : ""}`}
                     >
                       <td className="px-3 py-2 align-top">
                         <input
@@ -432,7 +431,7 @@ export default function JobsView() {
                         />
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <div className="font-semibold text-slate-900 leading-snug flex items-center gap-1.5 flex-wrap">
+                        <div className="font-semibold text-[var(--text-primary)] leading-snug flex items-center gap-1.5 flex-wrap">
                           {priorityMap.get(job.id) && (
                             <span
                               className={`text-[10px] px-1 py-0.5 rounded font-bold ${
@@ -445,12 +444,12 @@ export default function JobsView() {
                           {displayCompany(job)}
                         </div>
                         {displayCompany(job) === "—" && job.source === "university_html" && (
-                          <div className="text-[11px] text-slate-400 mt-0.5">用人单位待解析</div>
+                          <div className="text-[11px] text-[var(--text-disabled)] mt-0.5">用人单位待解析</div>
                         )}
                         {facetTags(job).slice(0, 2).map((t) => (
                           <span
                             key={t}
-                            className="inline-block mt-1 mr-1 text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded"
+                            className="inline-block mt-1 mr-1 text-[10px] px-1.5 py-0.5 bg-[var(--surface-base)] text-[var(--text-secondary)] rounded"
                           >
                             {t}
                           </span>
@@ -459,24 +458,24 @@ export default function JobsView() {
                       <td className="px-3 py-2 align-top">
                         <div className="text-blue-700 font-medium">{displayRole(job)}</div>
                         {positions && (
-                          <div className="text-xs text-slate-500 mt-0.5 line-clamp-2" title={positions}>
+                          <div className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2" title={positions}>
                             {positions}
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-slate-700">{job.job_type || "校招"}</td>
-                      <td className="px-3 py-2 align-top text-slate-700">
+                      <td className="px-3 py-2 align-top text-[var(--text-primary)]">{job.job_type || "校招"}</td>
+                      <td className="px-3 py-2 align-top text-[var(--text-primary)]">
                         {cities.length ? cities.join("、") : "—"}
                       </td>
-                      <td className="px-3 py-2 align-top text-slate-600 whitespace-nowrap">
+                      <td className="px-3 py-2 align-top text-[var(--text-secondary)] whitespace-nowrap">
                         {freshnessLabel(job)}
                       </td>
-                      <td className="px-3 py-2 align-top text-slate-600 whitespace-nowrap">
+                      <td className="px-3 py-2 align-top text-[var(--text-secondary)] whitespace-nowrap">
                         {job.deadline ? formatDateShort(job.deadline) : "—"}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <span className="text-xs text-slate-700">{publisherLabel(job)}</span>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{sourceLabel(job)}</div>
+                        <span className="text-xs text-[var(--text-primary)]">{publisherLabel(job)}</span>
+                        <div className="text-[10px] text-[var(--text-disabled)] mt-0.5">{sourceLabel(job)}</div>
                         {job.validation_status === "weak" && (
                           <div className="text-[10px] text-amber-700 mt-0.5">待补全</div>
                         )}
@@ -488,7 +487,7 @@ export default function JobsView() {
                               href={job.jd_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                              className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
                             >
                               <ExternalLink size={12} /> 官方
                             </a>

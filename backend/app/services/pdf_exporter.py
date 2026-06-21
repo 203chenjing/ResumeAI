@@ -52,6 +52,7 @@ def validate_resume_markdown(markdown: str, session_id: str = "") -> dict:
         page_count = 0
         page_passed = False
         layout_issues: list[str] = []
+        bottom_gap_mm = None
 
         cmd = [
             sys.executable,
@@ -73,15 +74,34 @@ def validate_resume_markdown(markdown: str, session_id: str = "") -> dict:
             elif page_count == 0:
                 layout_issues.append("PDF 页数为 0")
             else:
-                from tools.markdown_resume_to_pdf import validate_pdf_photo_layout
+                from tools.markdown_resume_to_pdf import (
+                    check_markdown_spacing,
+                    measure_pdf_bottom_gap,
+                    validate_pdf_photo_layout,
+                )
 
+                layout_issues.extend(check_markdown_spacing(staged))
                 layout_issues.extend(validate_pdf_photo_layout(pdf_path))
+                gap_info = measure_pdf_bottom_gap(pdf_path)
+                layout_issues.extend(gap_info.get("issues", []))
+                bottom_gap_mm = gap_info.get("bottom_gap_mm")
         elif result.returncode != 0:
             layout_issues.append(result.stderr.strip() or result.stdout.strip() or "PDF 生成失败")
+            bottom_gap_mm = None
+        else:
+            bottom_gap_mm = None
 
-        # 页数脚本通过但底部空白仍需人工密度判断：用字符数粗估
-        if page_passed and len(staged.strip()) < 900:
-            layout_issues.append("内容过短，单页底部可能空白过多")
+        from app.services.resume_density import SPARSE_THRESHOLD, assess_density
+
+        density = assess_density(staged)
+        # 页数通过但字数偏少：单页底部易留白（与 SKILL 1500 字下限对齐）
+        if page_passed and density["char_count"] < SPARSE_THRESHOLD:
+            layout_issues.append(
+                f"内容约 {density['char_count']} 字，偏少，一页底部可能留白较多"
+            )
+            page_passed = False
+        elif page_passed and len(staged.strip()) < 900:
+            layout_issues.append("内容偏少，一页底部可能留白较多")
             page_passed = False
 
         return {
@@ -90,6 +110,8 @@ def validate_resume_markdown(markdown: str, session_id: str = "") -> dict:
             "page_count": page_count,
             "page_passed": page_passed and not layout_issues,
             "layout_issues": layout_issues,
+            "bottom_gap_mm": bottom_gap_mm,
+            "density": density,
         }
 
 
@@ -130,4 +152,24 @@ def export_pdf(
         raise RuntimeError(f"PDF 生成失败: {result.stderr or result.stdout}")
     if not pdf_path.exists():
         raise RuntimeError("PDF 文件未生成")
+
+    layout_warnings = check_export_layout_warnings(pdf_path, staged_md)
+    if layout_warnings:
+        logger.warning("PDF export layout warnings: %s", "; ".join(layout_warnings))
     return pdf_path
+
+
+def check_export_layout_warnings(pdf_path: Path, markdown: str) -> list[str]:
+    """导出后软性检查：记录页底空白与空行问题（不阻断下载）。"""
+    from tools.markdown_resume_to_pdf import (
+        check_markdown_spacing,
+        measure_pdf_bottom_gap,
+        validate_pdf_photo_layout,
+    )
+
+    warnings: list[str] = []
+    warnings.extend(check_markdown_spacing(markdown))
+    warnings.extend(validate_pdf_photo_layout(pdf_path))
+    gap_info = measure_pdf_bottom_gap(pdf_path)
+    warnings.extend(gap_info.get("issues", []))
+    return warnings

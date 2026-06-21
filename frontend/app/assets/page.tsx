@@ -20,6 +20,7 @@ import KnowledgeSectionDetail from "@/components/knowledge/KnowledgeSectionDetai
 import KnowledgeCopilot from "@/components/copilot/KnowledgeCopilot";
 import { getPersistedSessionId } from "@/lib/sessionBootstrap";
 import { extractPendingMarkers } from "@/lib/knowledgePending";
+import { copy } from "@/lib/copy";
 
 type ViewMode = "structured" | "markdown";
 type LeftTab = "topics" | "pending";
@@ -122,7 +123,7 @@ export default function AssetsPage() {
         await api.saveKnowledgeBase(sessionId, content);
       }
       setKnowledgeBase(content);
-      pushToast("知识库已保存", "success");
+      pushToast(copy.knowledge.savedToast, "success");
     } catch (e) {
       pushToast((e as Error).message, "error");
     } finally {
@@ -130,15 +131,18 @@ export default function AssetsPage() {
     }
   }
 
-  function selectSectionByTitle(title: string) {
-    const sec = sections.find(
+  function selectSectionByTitle(title: string, md?: string) {
+    const source = md ?? content;
+    const secs = parseKnowledgeSections(source);
+    const tops = parseKnowledgeTopics(source);
+    const sec = secs.find(
       (s) => s.title === title || s.title.includes(title) || title.includes(s.title)
     );
     if (!sec) return;
     setSelectedSectionId(sec.id);
     setLeftTab("topics");
     setViewMode("structured");
-    const topic = topics.find((t) => t.lineStart === sec.lineStart);
+    const topic = tops.find((t) => t.lineStart === sec.lineStart);
     if (topic) setActiveTopic(topic.id);
   }
 
@@ -163,19 +167,19 @@ export default function AssetsPage() {
     setContent(kb);
     setKnowledgeBase(kb);
     saveLocalMemory({ knowledge_base_md: kb });
-    pushToast("已合并到知识库，请保存", "info");
+    pushToast(copy.knowledge.mergedToast, "info");
   }
 
   return (
     <div className="h-full flex flex-col min-h-[calc(100vh-var(--topbar-height,3.5rem))]">
       <div className="shrink-0 px-6 py-4 border-b border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <BookOpen size={20} className="text-[var(--primary)]" />
-            知识库
+            {copy.knowledge.title}
           </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-            {factCount} 条事实 · {pendingCount} 处待确认
+          <p className="page-subtitle">
+            {copy.knowledge.subtitle(factCount, pendingCount)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -187,7 +191,7 @@ export default function AssetsPage() {
                 viewMode === "structured" ? "bg-[var(--primary)] text-white" : ""
               }`}
             >
-              <LayoutList size={14} /> 结构化
+              <LayoutList size={14} /> {copy.knowledge.structured}
             </button>
             <button
               type="button"
@@ -196,7 +200,7 @@ export default function AssetsPage() {
                 viewMode === "markdown" ? "bg-[var(--primary)] text-white" : ""
               }`}
             >
-              <FileText size={14} /> Markdown
+              <FileText size={14} /> {copy.knowledge.raw}
             </button>
           </div>
           <button
@@ -206,7 +210,7 @@ export default function AssetsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            保存
+            {copy.knowledge.save}
           </button>
         </div>
       </div>
@@ -220,7 +224,7 @@ export default function AssetsPage() {
               onClick={() => setLeftTab("topics")}
               className={`flex-1 py-1 rounded ${leftTab === "topics" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-secondary)]"}`}
             >
-              主题
+              {copy.knowledge.topics}
             </button>
             <button
               type="button"
@@ -230,7 +234,7 @@ export default function AssetsPage() {
               }}
               className={`flex-1 py-1 rounded relative ${leftTab === "pending" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-secondary)]"}`}
             >
-              待确认
+              {copy.knowledge.pending}
               {pendingMarkers.length > 0 && (
                 <span className="ml-1 text-[10px] px-1 rounded-full bg-amber-100 text-amber-800">
                   {pendingMarkers.length}
@@ -240,7 +244,7 @@ export default function AssetsPage() {
           </div>
           {leftTab === "topics" ? (
             topics.length === 0 ? (
-              <p className="text-xs text-[var(--text-disabled)]">用 ## 标题组织素材</p>
+              <p className="text-xs text-[var(--text-disabled)]">{copy.knowledge.topicsEmpty}</p>
             ) : (
               <ul className="space-y-0.5">
                 {topics.map((t) => (
@@ -263,7 +267,7 @@ export default function AssetsPage() {
             )
           ) : (
             <p className="text-xs text-[var(--text-disabled)] leading-relaxed">
-              中间栏已打开待确认工作台，可逐项填写并确认。
+              {copy.knowledge.pendingHint}
             </p>
           )}
         </aside>
@@ -280,7 +284,7 @@ export default function AssetsPage() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full h-full min-h-[60vh] p-4 text-sm font-mono leading-relaxed resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-              placeholder="维护 STAR、指标与项目事实…"
+              placeholder={copy.knowledge.editorPlaceholder}
               spellCheck={false}
             />
           ) : leftTab === "pending" ? (
@@ -292,7 +296,7 @@ export default function AssetsPage() {
             />
           ) : sections.length === 0 ? (
             <p className="text-sm text-[var(--text-disabled)]">
-              暂无 ## 段落，切换到 Markdown 模式编辑或让 Copilot 从简历导入。
+              {copy.knowledge.sectionsEmpty}
             </p>
           ) : selectedSection?.title.includes("待确认") ? (
             <KnowledgePendingWorkspace

@@ -1,14 +1,15 @@
 import type { GapItem } from "@/lib/types";
+import { copy } from "@/lib/copy";
 
 const STATUS_LABEL: Record<GapItem["status"], { text: string; className: string }> = {
-  match: { text: "高", className: "bg-green-100 text-green-800" },
-  partial: { text: "中", className: "bg-amber-100 text-amber-800" },
-  missing: { text: "缺失", className: "bg-red-100 text-red-800" },
+  match: { text: copy.match.gapHigh, className: "bg-green-50 text-green-800" },
+  partial: { text: copy.match.gapMid, className: "bg-amber-50 text-amber-800" },
+  missing: { text: copy.match.gapMissing, className: "bg-red-50 text-red-800" },
 };
 
 export default function GapAnalysisList({ gaps }: { gaps: GapItem[] }) {
   if (!gaps.length) {
-    return <p className="text-sm text-slate-500">暂无差距分析</p>;
+    return <p className="text-sm text-[var(--text-secondary)]">{copy.match.noGaps}</p>;
   }
 
   return (
@@ -18,14 +19,14 @@ export default function GapAnalysisList({ gaps }: { gaps: GapItem[] }) {
         return (
           <li
             key={i}
-            className="flex gap-2 items-start text-sm border border-slate-100 rounded-lg p-2 bg-slate-50"
+            className="flex gap-2 items-start text-sm border border-[var(--border-subtle)] rounded-lg p-2 bg-[var(--surface-base)]"
           >
             <span className={`shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${st.className}`}>
               {st.text}
             </span>
             <div>
-              <div className="font-medium text-slate-800">{g.requirement}</div>
-              {g.detail && <div className="text-xs text-slate-500 mt-0.5">{g.detail}</div>}
+              <div className="font-medium text-[var(--text-primary)]">{g.requirement}</div>
+              {g.detail && <div className="text-xs text-[var(--text-secondary)] mt-0.5">{g.detail}</div>}
             </div>
           </li>
         );

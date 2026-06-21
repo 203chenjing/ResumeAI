@@ -42,6 +42,12 @@ TOOL_CATALOG: dict[str, dict] = {
         "specialists": ["analyzer", "coordinator"],
         "risky": False,
     },
+    "build_resume_from_knowledge": {
+        "desc": "根据知识库与目标岗位重新生成工作稿简历（覆盖当前工作稿，并重新生成建议）",
+        "specialists": ["writer", "coordinator"],
+        "risky": True,
+        "input_hint": {"regenerate_suggestions": True},
+    },
     "generate_suggestions": {
         "desc": "基于当前简历与 JD 生成修改建议",
         "specialists": ["writer", "coordinator"],
@@ -110,6 +116,8 @@ def available_tools(sess: Session, specialist: str = "coordinator") -> list[dict
         if name == "expand_star" and not sess.knowledge_base_md.strip():
             continue
         if name == "audit_knowledge" and not sess.knowledge_base_md.strip():
+            continue
+        if name == "build_resume_from_knowledge" and not sess.jd_analysis:
             continue
         if name == "generate_suggestions" and not sess.match_result:
             continue

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.models.schemas import ApiResponse
 from app.services.application_advisor import application_decision
 from app.services.match_analyzer import analyze_match
+from app.services.resume_from_knowledge import build_resume_from_knowledge
 from app.services.resume_density import assess_density
 from app.services.session_store import store
 from app.services.suggestion_engine import generate_suggestions
@@ -18,6 +19,33 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 class SessionRef(BaseModel):
     session_id: str
     knowledge_base: str = ""
+    client_id: str = "default"
+    regenerate_suggestions: bool = True
+
+
+@router.post("/build-resume-from-knowledge", response_model=ApiResponse)
+async def build_resume_from_knowledge_route(payload: SessionRef):
+    """根据知识库 + 当前 JD 生成工作稿简历，并可选重新生成修改建议。"""
+    sess = store.get(payload.session_id)
+    if not sess:
+        raise HTTPException(404, "会话不存在或已过期")
+    if not sess.jd_analysis:
+        raise HTTPException(400, "请先完成岗位分析")
+
+    try:
+        result = await build_resume_from_knowledge(
+            sess,
+            knowledge_base=payload.knowledge_base,
+            client_id=payload.client_id,
+            regenerate_suggestions=payload.regenerate_suggestions,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logger.exception("build resume from knowledge failed")
+        raise HTTPException(500, f"生成失败: {e}") from e
+
+    return ApiResponse(success=True, data=result)
 
 
 @router.post("/analyze-match", response_model=ApiResponse)

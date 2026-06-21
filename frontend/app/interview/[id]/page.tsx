@@ -8,6 +8,8 @@ import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { InterviewPrepPack } from "@/lib/types";
 import { BookOpen, Loader2, MessageSquare, Send } from "lucide-react";
+import { copy } from "@/lib/copy";
+import { ROUTES } from "@/lib/navigation";
 
 const ROUNDS = [
   { id: "hr", label: "HR 面" },
@@ -102,30 +104,30 @@ export default function InterviewPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare /> 面试准备
             {pack && (
-              <span className="text-base font-normal text-slate-500">
+              <span className="text-base font-normal text-[var(--text-secondary)]">
                 {pack.company} · {pack.role}
               </span>
             )}
           </h1>
-          <Link href="/tracker" className="text-sm text-blue-600 hover:underline">
+          <Link href="/tracker" className="text-link">
             返回追踪器
           </Link>
         </div>
 
         {!pack ? (
-          <Loader2 className="animate-spin mx-auto text-slate-400" />
+          <Loader2 className="animate-spin mx-auto text-[var(--text-disabled)]" />
         ) : (
           <div className="grid lg:grid-cols-2 gap-6">
             <section className="space-y-4">
-              <div className="bg-white border rounded-xl p-4">
+              <div className="surface-card p-4">
                 <h2 className="font-semibold flex items-center gap-2 mb-3">
                   <BookOpen size={16} /> 相关 STAR 故事
                 </h2>
                 <ul className="space-y-2 text-sm">
                   {pack.stories.map((s) => (
-                    <li key={s.id} className="p-2 bg-slate-50 rounded border">
+                    <li key={s.id} className="p-2 bg-[var(--surface-base)] rounded border">
                       <div className="font-medium">{s.title}</div>
-                      <div className="text-xs text-slate-500 mt-1">
+                      <div className="text-xs text-[var(--text-secondary)] mt-1">
                         相关度 {Math.round(s.relevance * 100)}%
                       </div>
                     </li>
@@ -134,24 +136,24 @@ export default function InterviewPage() {
               </div>
 
               {(["hr", "technical", "group"] as const).map((cat) => (
-                <div key={cat} className="bg-white border rounded-xl p-4">
+                <div key={cat} className="surface-card p-4">
                   <h3 className="text-sm font-semibold mb-2 capitalize">{cat} 题库</h3>
                   <ul className="text-sm space-y-2">
                     {(pack.questions[cat] || []).slice(0, 3).map((q) => (
-                      <li key={q.question} className="text-slate-700">
+                      <li key={q.question} className="text-[var(--text-primary)]">
                         <span
                           className={`text-xs px-1 rounded mr-1 ${
                             q.story_fit === "strong"
                               ? "bg-green-100 text-green-700"
                               : q.story_fit === "partial"
                                 ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100"
+                                : "bg-[var(--surface-base)]"
                           }`}
                         >
                           {q.story_fit}
                         </span>
                         {q.question}
-                        <div className="text-xs text-slate-400 mt-0.5">{q.tips}</div>
+                        <div className="text-xs text-[var(--text-disabled)] mt-0.5">{q.tips}</div>
                       </li>
                     ))}
                   </ul>
@@ -159,7 +161,7 @@ export default function InterviewPage() {
               ))}
             </section>
 
-            <section className="bg-white border rounded-xl p-4 flex flex-col min-h-[480px]">
+            <section className="surface-card p-4 flex flex-col min-h-[480px]">
               <h2 className="font-semibold mb-3">模拟面试</h2>
               <div className="flex gap-2 mb-3">
                 {ROUNDS.map((r) => (
@@ -168,7 +170,7 @@ export default function InterviewPage() {
                     type="button"
                     onClick={() => setRound(r.id)}
                     className={`px-3 py-1 text-xs rounded-full border ${
-                      round === r.id ? "bg-blue-600 text-white border-blue-600" : ""
+                      round === r.id ? "bg-[var(--primary)] text-white border-[var(--primary)]" : ""
                     }`}
                   >
                     {r.label}
@@ -178,15 +180,15 @@ export default function InterviewPage() {
                   type="button"
                   onClick={startMock}
                   disabled={streaming}
-                  className="ml-auto text-xs px-3 py-1 bg-violet-600 text-white rounded-full"
+                  className="ml-auto text-xs px-3 py-1 bg-[var(--primary)] text-white rounded-full"
                 >
                   开始
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 mb-3 text-sm bg-slate-50 rounded-lg p-3">
+              <div className="flex-1 overflow-y-auto space-y-2 mb-3 text-sm bg-[var(--surface-base)] rounded-lg p-3">
                 {chatLog.length === 0 && (
-                  <p className="text-slate-400 text-xs">点击「开始」进入模拟面试</p>
+                  <p className="text-[var(--text-disabled)] text-xs">点击「开始」进入模拟面试</p>
                 )}
                 {chatLog.map((m, i) => (
                   <div
@@ -196,7 +198,7 @@ export default function InterviewPage() {
                     {m.content}
                   </div>
                 ))}
-                {streaming && <Loader2 size={14} className="animate-spin text-slate-400" />}
+                {streaming && <Loader2 size={14} className="animate-spin text-[var(--text-disabled)]" />}
               </div>
 
               {score !== null && (
@@ -215,7 +217,7 @@ export default function InterviewPage() {
                   type="button"
                   onClick={submitAnswer}
                   disabled={streaming || !answer.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                  className="btn-primary px-4 py-2"
                 >
                   <Send size={16} />
                 </button>

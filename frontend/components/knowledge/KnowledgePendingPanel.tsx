@@ -52,7 +52,7 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-slate-900 flex items-center gap-2 text-sm">
+        <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2 text-sm">
           <BookMarked size={16} className="text-purple-600" />
           待沉淀 ({pending.length})
         </h3>
@@ -60,18 +60,18 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
           type="button"
           onClick={mergeAll}
           disabled={merging || !items.some((i) => i.status === "confirmed")}
-          className="text-xs text-purple-700 hover:underline disabled:text-slate-400"
+          className="text-xs text-[var(--primary)] hover:underline disabled:text-[var(--text-disabled)]"
         >
           {merging ? "合并中…" : "合并已确认"}
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8 text-slate-400">
+        <div className="flex justify-center py-8 text-[var(--text-disabled)]">
           <Loader2 size={20} className="animate-spin" />
         </div>
       ) : pending.length === 0 ? (
-        <p className="text-xs text-slate-500 leading-relaxed">
+        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
           接受简历修改建议后，新内容会出现在这里。确认后合并进知识库。
         </p>
       ) : (
@@ -81,8 +81,8 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
               key={item.id}
               className="p-2 bg-purple-50 border border-purple-100 rounded-lg text-xs"
             >
-              <div className="text-slate-500 mb-1">{item.source || "edit"}</div>
-              <p className="text-slate-800 line-clamp-3">{item.new_text}</p>
+              <div className="text-[var(--text-secondary)] mb-1">{item.source || "edit"}</div>
+              <p className="text-[var(--text-primary)] line-clamp-3">{item.new_text}</p>
               <div className="flex gap-1 mt-2 justify-end">
                 <button
                   type="button"
@@ -94,7 +94,7 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
                 <button
                   type="button"
                   onClick={() => resolve(item.id, "ignore")}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-slate-500 bg-slate-100 rounded hover:bg-slate-200"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[var(--text-secondary)] bg-[var(--surface-base)] rounded hover:bg-[var(--border-subtle)]"
                 >
                   <X size={12} /> 忽略
                 </button>

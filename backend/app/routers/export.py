@@ -27,6 +27,35 @@ def _export_markdown(sess, mode: str) -> str:
     return sess.finalized_resume_md
 
 
+@router.post("/export-layout-check", response_model=ApiResponse)
+async def export_layout_check(payload: ExportRequest):
+    """定稿后检查页底空白、字数密度与 Markdown 空行（导出前预览用）。"""
+    from app.services.pdf_exporter import validate_resume_markdown
+
+    sess = store.get(payload.session_id)
+    if not sess:
+        raise HTTPException(404, "会话不存在")
+    if sess.finalize_status != "finalized" or not sess.finalized_resume_md:
+        raise HTTPException(400, "请先确认定稿")
+
+    validation = validate_resume_markdown(sess.finalized_resume_md, session_id=payload.session_id)
+    density = validation.get("density") or {}
+    return ApiResponse(
+        success=True,
+        data={
+            "page_count": validation.get("page_count", 0),
+            "page_passed": validation.get("page_passed", False),
+            "bottom_gap_mm": validation.get("bottom_gap_mm"),
+            "char_count": density.get("char_count"),
+            "density_status": density.get("status"),
+            "density_message": density.get("message"),
+            "layout_issues": validation.get("layout_issues", []),
+            "skill_issues": validation.get("skill_issues", []),
+            "ok": bool(validation.get("page_passed") and validation.get("skill_passed")),
+        },
+    )
+
+
 @router.post("/export-pdf")
 async def export_pdf_route(payload: ExportRequest):
     sess = store.get(payload.session_id)

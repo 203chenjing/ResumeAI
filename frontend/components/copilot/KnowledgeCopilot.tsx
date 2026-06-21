@@ -12,8 +12,14 @@ import {
   buildKnowledgeUiContext,
   type KnowledgeUiContext,
 } from "@/lib/knowledgeSessionSync";
+import { copy } from "@/lib/copy";
 
-const QUICK_CHIPS = ["从简历导入", "补全 STAR", "检查待确认", "合并待沉淀"];
+const QUICK_CHIPS = [
+  copy.knowledge.chips.import,
+  copy.knowledge.chips.star,
+  copy.knowledge.chips.audit,
+  copy.knowledge.chips.merge,
+];
 
 type Props = {
   content: string;
@@ -41,6 +47,7 @@ export default function KnowledgeCopilot({
   const { sessionId, pushToast } = useAppStore();
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
+  const [lastNavigatedTitle, setLastNavigatedTitle] = useState<string | null>(null);
 
   const contextLabel = selectedSection?.title || "全部主题";
 
@@ -69,26 +76,32 @@ export default function KnowledgeCopilot({
         content,
         message: text,
         session_id: sessionId || "",
-        ui_context: uiContext(),
+        ui_context: uiContext() as unknown as Record<string, unknown>,
         history: messages.slice(-6),
       });
       const data = res.data;
       const reply = data?.reply || "（无回复）";
-      const { updated, saved } = applyKnowledgeChatResult(
+      const { updated, saved, navigatedTo } = applyKnowledgeChatResult(
         {
           reply,
           updated_markdown: data?.updated_markdown,
           saved: data?.saved,
           ui_patch: data?.ui_patch,
         },
-        applyCallbacks
+        applyCallbacks,
+        content
       );
+      if (navigatedTo) setLastNavigatedTitle(navigatedTo);
 
       const actions: { id: string; label: string }[] = [];
       if (updated) {
         actions.push({
           id: "view-updated",
-          label: saved ? "已写入左侧知识库" : "查看更新内容",
+          label: saved
+            ? navigatedTo
+              ? `已写入「${navigatedTo}」`
+              : "已写入左侧知识库"
+            : "查看更新内容",
         });
       } else if (reply.includes("待确认") || reply.includes("待补充")) {
         const markers = extractPendingMarkers(content);
@@ -108,7 +121,7 @@ export default function KnowledgeCopilot({
           saved ? "success" : "info"
         );
       } else if (/已(写入|更新|生成|整理|添加|补充)/.test(reply)) {
-        pushToast("AI 回复未包含可写入的内容，请换种说法或点「补全 STAR」", "warning");
+        pushToast(copy.knowledge.writeFailed, "warning");
       }
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -118,9 +131,9 @@ export default function KnowledgeCopilot({
   }
 
   async function handleChip(chip: string) {
-    if (chip === "从简历导入") {
+    if (chip === copy.knowledge.chips.import) {
       if (!sessionId) {
-        pushToast("请先在改简历流程中上传简历，或手动粘贴内容", "warning");
+        pushToast(copy.knowledge.importNeedResume, "warning");
         return;
       }
       setStreaming(true);
@@ -133,7 +146,7 @@ export default function KnowledgeCopilot({
         if (md) {
           onContentChange(md);
           onAutoSaved?.(md);
-          pushToast("已从简历生成草稿并已保存", "success");
+          pushToast(copy.knowledge.importOk, "success");
           setMessages((prev) => [
             ...prev,
             { role: "assistant", content: "已根据简历生成知识库草稿，含 [待确认] 标记的条目请逐项核对。" },
@@ -147,9 +160,9 @@ export default function KnowledgeCopilot({
       return;
     }
 
-    if (chip === "补全 STAR") {
+    if (chip === copy.knowledge.chips.star) {
       if (!selectedSection) {
-        pushToast("请先在左侧选择一段主题", "info");
+        pushToast(copy.knowledge.selectTopic, "info");
         return;
       }
       setStreaming(true);
@@ -165,7 +178,7 @@ export default function KnowledgeCopilot({
             ? content.replace(selectedSection.content, md.replace(/^##\s+[^\n]+\n?/, "").trim())
             : `${content}\n\n${md}`;
           onContentChange(updated);
-          pushToast("STAR 补全已写入中间栏，请保存", "info");
+          pushToast(copy.knowledge.starOk, "info");
           setMessages((prev) => [
             ...prev,
             { role: "assistant", content: `已补全「${selectedSection.title}」的 STAR 结构，请在中间栏确认。` },
@@ -179,7 +192,7 @@ export default function KnowledgeCopilot({
       return;
     }
 
-    if (chip === "检查待确认") {
+    if (chip === copy.knowledge.chips.audit) {
       setStreaming(true);
       try {
         const res = await api.knowledgeAgent.audit({ content });
@@ -211,7 +224,7 @@ export default function KnowledgeCopilot({
       return;
     }
 
-    if (chip === "合并待沉淀") {
+    if (chip === copy.knowledge.chips.merge) {
       onMergePending?.();
       return;
     }
@@ -230,11 +243,12 @@ export default function KnowledgeCopilot({
       onQuickChip={handleChip}
       onMessageAction={(id) => {
         if (id === "open-pending-workspace") onOpenPendingWorkspace?.();
-        if (id === "view-updated" && selectedSection) {
-          onSelectSectionByTitle?.(selectedSection.title);
+        if (id === "view-updated") {
+          const title = lastNavigatedTitle || selectedSection?.title;
+          if (title) onSelectSectionByTitle?.(title);
         }
       }}
-      placeholder="描述要如何整理知识库…"
+      placeholder={copy.knowledge.copilotPlaceholder}
     />
   );
 }

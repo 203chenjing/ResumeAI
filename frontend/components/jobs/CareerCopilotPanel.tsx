@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Loader2, Send, X } from "lucide-react";
+import { Sparkles, Loader2, Send, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { CareerCopilotEvent, GenUiBlock } from "@/lib/types";
 import GenUiRenderer from "@/components/jobs/GenUiRenderer";
+import { copy } from "@/lib/copy";
 
 type Message = { role: "user" | "assistant"; text: string; blocks?: GenUiBlock[] };
 
 const STARTERS = [
-  "推荐最匹配我简历的秋招岗位",
-  "今天有哪些 P0 优先投递？",
-  "北京秋招岗位有哪些？",
-  "帮我刷新并同步飞书表",
+  "推荐最适合我的岗位",
+  "今天优先投哪些？",
+  "北京有哪些相关岗位？",
+  copy.jobs.refresh,
 ];
 
 type Props = {
@@ -37,7 +38,7 @@ export default function CareerCopilotPanel({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      text: "我是求职 Copilot：可以说自然语言，我会用混合匹配（BM25+技能图谱）生成可点的岗位卡片。",
+      text: copy.jobs.copilotIntro,
     },
   ]);
 
@@ -82,20 +83,20 @@ export default function CareerCopilotPanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg bg-violet-600 text-white text-sm hover:bg-violet-700"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg bg-[var(--primary)] text-white text-sm hover:opacity-90"
       >
-        <Bot size={18} /> 求职 Copilot
+        <Sparkles size={18} /> {copy.jobs.copilotTitle}
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl border shadow-2xl bg-white overflow-hidden max-h-[min(640px,calc(100vh-4rem))]">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
+    <div className="fixed bottom-6 right-6 z-40 w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] shadow-2xl bg-[var(--surface-container)] overflow-hidden max-h-[min(640px,calc(100vh-4rem))]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--primary)] text-white">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Bot size={18} /> 求职 Copilot · LUI + GUI
+          <Sparkles size={18} /> {copy.jobs.copilotTitle}
         </div>
-        <button type="button" onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded">
+        <button type="button" onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded" aria-label={copy.common.close}>
           <X size={16} />
         </button>
       </div>
@@ -105,7 +106,9 @@ export default function CareerCopilotPanel({
           <div key={i} className={m.role === "user" ? "text-right" : ""}>
             <div
               className={`inline-block max-w-[95%] rounded-xl px-3 py-2 ${
-                m.role === "user" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-800"
+                m.role === "user"
+                  ? "bg-[var(--primary)] text-white"
+                  : "bg-[var(--surface-base)] text-[var(--text-primary)]"
               }`}
             >
               {m.text}
@@ -121,8 +124,8 @@ export default function CareerCopilotPanel({
           </div>
         ))}
         {streaming && (
-          <div className="flex items-center gap-2 text-slate-400 text-xs">
-            <Loader2 size={14} className="animate-spin" /> 生成界面…
+          <div className="flex items-center gap-2 text-[var(--text-disabled)] text-xs">
+            <Loader2 size={14} className="animate-spin" /> {copy.jobs.copilotThinking}
           </div>
         )}
       </div>
@@ -133,7 +136,7 @@ export default function CareerCopilotPanel({
             key={s}
             type="button"
             onClick={() => send(s)}
-            className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 hover:bg-violet-100 border"
+            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-base)] hover:bg-[var(--primary-muted)] border border-[var(--border-subtle)] text-[var(--text-secondary)]"
           >
             {s}
           </button>
@@ -141,7 +144,7 @@ export default function CareerCopilotPanel({
       </div>
 
       <form
-        className="flex gap-2 p-3 border-t"
+        className="flex gap-2 p-3 border-t border-[var(--border-subtle)]"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -150,13 +153,13 @@ export default function CareerCopilotPanel({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="例如：推荐最匹配的 AI 产品岗"
-          className="flex-1 text-sm border rounded-lg px-3 py-2"
+          placeholder={copy.jobs.copilotPlaceholder}
+          className="flex-1 text-sm input-field"
         />
         <button
           type="submit"
           disabled={streaming}
-          className="p-2 rounded-lg bg-violet-600 text-white disabled:opacity-50"
+          className="p-2 rounded-lg bg-[var(--primary)] text-white disabled:opacity-50"
         >
           {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </button>

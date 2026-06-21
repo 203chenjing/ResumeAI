@@ -23,7 +23,7 @@ function RichText({ text }: { text: string }) {
           return (
             <span
               key={i}
-              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-xs bg-slate-100 text-slate-600 border border-slate-200"
+              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded text-xs bg-[var(--surface-base)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
             >
               待补充
             </span>

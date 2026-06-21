@@ -17,7 +17,7 @@ const DEFAULT: UserMemory = {
   knowledge_base_md: "",
   notes: "",
   preferences: {
-    writing_style: "量化、STAR、强动词",
+    writing_style: "量化数据、STAR 结构、有力动词",
     prefer_accept_safe: true,
     remind_finalize: true,
     review_policy: "accept_safe",
@@ -32,10 +32,10 @@ export function buildQuickPrompts(mem?: UserMemory): string[] {
   const policy = m.preferences.review_policy || "accept_safe";
   const recent = m.preferences.recent_intent?.trim();
   const prompts = [
-    recent || `按「${style}」风格优化经历描述`,
-    policy === "accept_all" ? "批量接受全部建议" : "批量处理待审建议",
-    "查看当前进度",
-    "定稿并导出 PDF",
+    m.knowledge_base_md?.trim() ? "根据知识库重新生成简历" : recent || "按目标岗位优化经历描述",
+    policy === "accept_all" ? "全部采纳建议" : "采纳稳妥的建议",
+    "现在进展怎么样",
+    "定稿并下载 PDF",
   ];
   return [...new Set(prompts.filter(Boolean))].slice(0, 4);
 }
@@ -46,7 +46,7 @@ export function buildOrchestrateGoal(mem?: UserMemory): string {
   const recent = m.preferences.recent_intent?.trim();
   if (recent) return recent;
   const style = m.preferences.writing_style || "量化";
-  return `针对当前 JD 完成匹配与建议生成，写作风格偏向：${style}`;
+  return `针对当前岗位完成匹配与建议生成，写作风格偏向：${style}`;
 }
 
 export function getClientId(): string {

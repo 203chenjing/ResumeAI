@@ -18,6 +18,7 @@ export interface EditSessionSetters {
   setDensity: (d: DensityInfo | null) => void;
   setFilter: (f: "all" | "pending" | "accepted" | "rejected") => void;
   setHighlightSuggestionIds: (ids: string[]) => void;
+  setCopilotOpen?: (open: boolean) => void;
 }
 
 export function mergeSuggestionLists(
@@ -33,26 +34,35 @@ export function mergeSuggestionLists(
 export function applyEditChatDone(
   event: EditChatEvent,
   setters: EditSessionSetters
-): { newCount: number; highlightIds: string[] } {
-  if (event.type !== "done") return { newCount: 0, highlightIds: [] };
+): { newCount: number; highlightIds: string[]; pendingDelta: number } {
+  if (event.type !== "done") return { newCount: 0, highlightIds: [], pendingDelta: 0 };
 
   const patch = (event as { ui_patch?: EditUiPatch }).ui_patch;
   const incoming = event.new_suggestions ?? [];
+  const pendingBefore =
+    event.session?.suggestions?.filter(
+      (s) => s.status === "pending" || s.status === "adjusted"
+    ).length ?? 0;
 
   if (event.session) {
     const s = event.session;
     if (s.suggestions) setters.setSuggestions(s.suggestions);
-    if (s.current_resume_md) setters.setCurrentMarkdown(s.current_resume_md);
-    if (s.finalized_resume_md) setters.setFinalizedMarkdown(s.finalized_resume_md);
+    if (s.current_resume_md !== undefined) setters.setCurrentMarkdown(s.current_resume_md);
+    if (s.finalized_resume_md !== undefined) setters.setFinalizedMarkdown(s.finalized_resume_md);
     if (s.finalize_status) setters.setFinalizeStatus(s.finalize_status);
     if (s.match !== undefined) setters.setMatchResult(s.match);
     if (s.density) setters.setDensity(s.density as DensityInfo);
   }
 
-  // 双保险：若 session 仍缺新建议，按 id 合并
   if (incoming.length > 0) {
     setters.mergeSuggestions(incoming);
   }
+
+  const pendingAfter =
+    event.session?.suggestions?.filter(
+      (s) => s.status === "pending" || s.status === "adjusted"
+    ).length ?? pendingBefore;
+  const pendingDelta = Math.max(0, pendingAfter - pendingBefore);
 
   const highlightIds =
     patch?.highlight_ids?.filter(Boolean) ??
@@ -60,7 +70,7 @@ export function applyEditChatDone(
 
   if (patch?.filter) {
     setters.setFilter(patch.filter);
-  } else if (incoming.length > 0) {
+  } else if (incoming.length > 0 || pendingDelta > 0) {
     setters.setFilter("pending");
   } else if (event.session?.suggestions) {
     const pending = event.session.suggestions.filter(
@@ -69,7 +79,7 @@ export function applyEditChatDone(
     const reply = event.reply || "";
     if (
       pending.length > 0 &&
-      (/待处理|修改建议/.test(reply) || /在哪|没看到|看不到|左侧/.test(reply))
+      (/待处理|修改建议|已生成/.test(reply) || /在哪|没看到|看不到|左侧/.test(reply))
     ) {
       setters.setFilter("pending");
       if (highlightIds.length === 0) {
@@ -78,11 +88,25 @@ export function applyEditChatDone(
     }
   }
 
-  if (highlightIds.length > 0) {
-    setters.setHighlightSuggestionIds(highlightIds);
+  if (patch?.focus_panel === "suggestions") {
+    setters.setFilter("pending");
+    setters.setCopilotOpen?.(true);
   }
 
-  return { newCount: incoming.length, highlightIds };
+  if (highlightIds.length > 0) {
+    setters.setHighlightSuggestionIds(highlightIds);
+  } else if (pendingDelta > 0 && event.session?.suggestions) {
+    const pending = event.session.suggestions.filter(
+      (s) => s.status === "pending" || s.status === "adjusted"
+    );
+    setters.setHighlightSuggestionIds(pending.map((s) => s.id));
+  }
+
+  return {
+    newCount: incoming.length > 0 ? incoming.length : pendingDelta,
+    highlightIds,
+    pendingDelta,
+  };
 }
 
 export function buildEditUiContext(state: {

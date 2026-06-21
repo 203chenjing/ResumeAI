@@ -10,19 +10,11 @@ import { useAppStore } from "@/stores/useAppStore";
 import type { ApplicationRecord, ApplicationStats, Reminder } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Briefcase, LayoutGrid, List, MessageSquare, Plus, Trash2 } from "lucide-react";
+import { copy } from "@/lib/copy";
 
 const KANBAN_COLUMNS = ["Evaluated", "Applied", "WrittenTest", "Interview", "Offer", "Rejected"];
 
-const STATUS_LABELS: Record<string, string> = {
-  Evaluated: "已评估",
-  Applied: "已投递",
-  WrittenTest: "笔试",
-  Interview: "面试",
-  Offer: "Offer",
-  Rejected: "拒信",
-  Discarded: "放弃",
-  SKIP: "跳过",
-};
+const STATUS_LABELS: Record<string, string> = copy.tracker.status as Record<string, string>;
 
 export default function TrackerPage() {
   const router = useRouter();
@@ -73,17 +65,17 @@ export default function TrackerPage() {
 
   async function removeApp(app: ApplicationRecord) {
     const label = `${app.company} · ${app.role}`;
-    if (!window.confirm(`确定删除投递记录「${label}」？此操作不可撤销。`)) return;
+    if (!window.confirm(copy.tracker.deleteConfirm(label))) return;
     const res = await api.deleteApplication(getClientId(), app.id);
     if (res.success) load();
   }
 
   const funnelData = stats
     ? [
-        { name: "投递", value: stats.applied_count },
-        { name: "笔试", value: Math.round((stats.written_test_rate || 0) * stats.applied_count) },
-        { name: "面试", value: stats.interview_count },
-        { name: "Offer", value: stats.offer_count },
+        { name: copy.tracker.funnelSteps.applied, value: stats.applied_count },
+        { name: copy.tracker.funnelSteps.written, value: Math.round((stats.written_test_rate || 0) * stats.applied_count) },
+        { name: copy.tracker.funnelSteps.interview, value: stats.interview_count },
+        { name: copy.tracker.funnelSteps.offer, value: stats.offer_count },
       ]
     : [];
 
@@ -98,40 +90,40 @@ export default function TrackerPage() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-8">
+    <main className="page-shell">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Briefcase /> 投递追踪
+          <h1 className="page-title flex items-center gap-2">
+            <Briefcase size={22} className="text-[var(--primary)]" /> {copy.tracker.title}
           </h1>
           <div className="flex flex-wrap gap-2 items-center">
-            <Link href="/jobs" className="text-sm text-blue-600 hover:underline">
-              岗位发现
+            <Link href={ROUTES.jobs} className="text-link">
+              {copy.tracker.jobsLink}
             </Link>
-            <Link href="/insights" className="text-sm text-blue-600 hover:underline">
-              求职洞察
+            <Link href={ROUTES.insights} className="text-link">
+              {copy.tracker.insightsLink}
             </Link>
-            <div className="flex border rounded-lg overflow-hidden text-sm">
+            <div className="flex border border-[var(--border-subtle)] rounded-lg overflow-hidden text-sm">
               <button
                 type="button"
                 onClick={() => setView("kanban")}
-                className={`px-3 py-1.5 flex items-center gap-1 ${view === "kanban" ? "bg-blue-600 text-white" : ""}`}
+                className={`px-3 py-1.5 flex items-center gap-1 ${view === "kanban" ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)]"}`}
               >
-                <LayoutGrid size={14} /> 看板
+                <LayoutGrid size={14} /> {copy.tracker.viewKanban}
               </button>
               <button
                 type="button"
                 onClick={() => setView("table")}
-                className={`px-3 py-1.5 flex items-center gap-1 ${view === "table" ? "bg-blue-600 text-white" : ""}`}
+                className={`px-3 py-1.5 flex items-center gap-1 ${view === "table" ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)]"}`}
               >
-                <List size={14} /> 表格
+                <List size={14} /> {copy.tracker.viewTable}
               </button>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(!showForm)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm"
+              className="btn-primary px-3 py-1.5"
             >
-              <Plus size={14} /> 记录
+              <Plus size={14} /> {copy.tracker.addRecord}
             </button>
           </div>
         </div>
@@ -149,19 +141,19 @@ export default function TrackerPage() {
         {stats && (
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="总岗位" value={stats.total} />
-              <StatCard label="已投递" value={stats.applied_count} />
-              <StatCard label="面试/Offer" value={stats.interview_count} />
-              <StatCard label="Offer" value={stats.offer_count} />
+              <StatCard label={copy.tracker.stats.total} value={stats.total} />
+              <StatCard label={copy.tracker.stats.applied} value={stats.applied_count} />
+              <StatCard label={copy.tracker.stats.interview} value={stats.interview_count} />
+              <StatCard label={copy.tracker.stats.offer} value={stats.offer_count} />
             </div>
-            <div className="bg-white border rounded-xl p-4 h-36">
-              <div className="text-xs text-slate-500 mb-2">转化漏斗</div>
+            <div className="surface-card p-4 h-36">
+              <div className="text-xs text-[var(--text-secondary)] mb-2">{copy.tracker.funnel}</div>
               <ResponsiveContainer width="100%" height="85%">
                 <BarChart data={funnelData}>
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -169,31 +161,27 @@ export default function TrackerPage() {
         )}
 
         {showForm && (
-          <div className="mb-6 p-4 bg-white border rounded-xl grid md:grid-cols-3 gap-3">
+          <div className="mb-6 surface-card p-4 grid md:grid-cols-3 gap-3">
             <input
-              className="border rounded-lg px-3 py-2 text-sm"
-              placeholder="公司"
+              className="input-field"
+              placeholder={copy.tracker.form.company}
               value={form.company}
               onChange={(e) => setForm({ ...form, company: e.target.value })}
             />
             <input
-              className="border rounded-lg px-3 py-2 text-sm"
-              placeholder="岗位"
+              className="input-field"
+              placeholder={copy.tracker.form.role}
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             />
             <input
-              className="border rounded-lg px-3 py-2 text-sm"
-              placeholder="截止日 YYYY-MM-DD"
+              className="input-field"
+              placeholder={copy.tracker.form.deadline}
               value={form.deadline}
               onChange={(e) => setForm({ ...form, deadline: e.target.value })}
             />
-            <button
-              type="button"
-              onClick={addApp}
-              className="md:col-span-3 py-2 bg-blue-600 text-white rounded-lg text-sm"
-            >
-              保存
+            <button type="button" onClick={addApp} className="md:col-span-3 btn-primary justify-center py-2">
+              {copy.tracker.form.save}
             </button>
           </div>
         )}
@@ -201,44 +189,46 @@ export default function TrackerPage() {
         {view === "kanban" ? (
           <div className="flex gap-3 overflow-x-auto pb-4">
             {KANBAN_COLUMNS.map((col) => (
-              <div key={col} className="min-w-[200px] flex-1 bg-slate-100 rounded-xl p-2">
-                <div className="text-xs font-semibold text-slate-600 px-2 py-1 mb-2">
+              <div key={col} className="min-w-[200px] flex-1 bg-[var(--surface-base)] rounded-xl p-2">
+                <div className="text-xs font-semibold text-[var(--text-secondary)] px-2 py-1 mb-2">
                   {STATUS_LABELS[col] || col}
                 </div>
                 <div className="space-y-2 min-h-[120px]">
                   {apps
                     .filter((a) => a.status === col)
                     .map((a) => (
-                      <div key={a.id} className="bg-white border rounded-lg p-3 text-sm shadow-sm">
-                        <div className="font-medium">{a.company}</div>
-                        <div className="text-xs text-slate-500">{a.role}</div>
+                      <div key={a.id} className="surface-card p-3 text-sm shadow-sm">
+                        <div className="font-medium text-[var(--text-primary)]">{a.company}</div>
+                        <div className="text-xs text-[var(--text-secondary)]">{a.role}</div>
                         {a.match_score > 0 && (
-                          <div className="text-xs text-blue-600 mt-1">匹配 {a.match_score}</div>
+                          <div className="text-xs text-[var(--primary)] mt-1">
+                            {copy.tracker.match(a.match_score)}
+                          </div>
                         )}
                         <div className="flex gap-1 mt-2 flex-wrap">
                           <Link
                             href={`/interview/${a.id}`}
-                            className="text-xs text-violet-600 flex items-center gap-0.5"
+                            className="text-xs text-link flex items-center gap-0.5"
                           >
-                            <MessageSquare size={10} /> 面试准备
+                            <MessageSquare size={10} /> {copy.tracker.interviewPrep}
                           </Link>
                           <button
                             type="button"
                             onClick={(e) => continueEdit(a, e)}
-                            className="text-xs text-blue-600"
+                            className="text-xs text-link"
                           >
-                            继续改稿
+                            {copy.tracker.continueEdit}
                           </button>
                           <button
                             type="button"
                             onClick={() => removeApp(a)}
-                            className="text-xs text-red-600 flex items-center gap-0.5"
+                            className="text-xs text-[var(--semantic-danger)] flex items-center gap-0.5"
                           >
-                            <Trash2 size={10} /> 删除
+                            <Trash2 size={10} /> {copy.common.delete}
                           </button>
                         </div>
                         <select
-                          className="mt-2 w-full border rounded text-xs py-1"
+                          className="mt-2 w-full input-field text-xs py-1"
                           value={a.status}
                           onChange={(e) => changeStatus(a.id, e.target.value)}
                         >
@@ -255,9 +245,9 @@ export default function TrackerPage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white border rounded-xl overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-600">
+              <thead className="bg-[var(--surface-base)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="text-left p-3">公司</th>
                   <th className="text-left p-3">岗位</th>
@@ -287,22 +277,22 @@ export default function TrackerPage() {
                     <td className="p-3">{a.match_score || "—"}</td>
                     <td className="p-3">
                       <div className="flex gap-2">
-                        <Link href={`/interview/${a.id}`} className="text-blue-600 text-xs">
-                          面试准备
+                        <Link href={`/interview/${a.id}`} className="text-link text-xs">
+                          {copy.tracker.interviewPrep}
                         </Link>
                         <button
                           type="button"
                           onClick={(e) => continueEdit(a, e)}
-                          className="text-blue-600 text-xs"
+                          className="text-link text-xs"
                         >
-                          继续改稿
+                          {copy.tracker.continueEdit}
                         </button>
                         <button
                           type="button"
                           onClick={() => removeApp(a)}
-                          className="text-red-600 text-xs inline-flex items-center gap-0.5"
+                          className="text-[var(--semantic-danger)] text-xs inline-flex items-center gap-0.5"
                         >
-                          <Trash2 size={12} /> 删除
+                          <Trash2 size={12} /> {copy.common.delete}
                         </button>
                       </div>
                     </td>
@@ -318,9 +308,9 @@ export default function TrackerPage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="p-4 bg-white border rounded-xl">
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-slate-500 mt-1">{label}</div>
+    <div className="p-4 surface-card">
+      <div className="text-2xl font-semibold text-[var(--text-primary)]">{value}</div>
+      <div className="text-xs text-[var(--text-secondary)] mt-1">{label}</div>
     </div>
   );
 }

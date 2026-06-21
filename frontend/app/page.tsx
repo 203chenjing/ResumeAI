@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, BookOpen, PenLine } from "lucide-react";
+import { Briefcase, BookOpen, ChevronRight } from "lucide-react";
 import ContinueCard from "@/components/hub/ContinueCard";
 import TodoList from "@/components/hub/TodoList";
 import GlanceStats from "@/components/hub/GlanceStats";
 import { EMPTY_STUDIO_META, getLastStudioMeta } from "@/lib/sessionBootstrap";
 import { ROUTES } from "@/lib/navigation";
+import { copy } from "@/lib/copy";
+
+const SHORTCUTS = [
+  { href: ROUTES.jobs, label: copy.hub.discoverJobs, icon: Briefcase },
+  { href: ROUTES.assets, label: copy.hub.organizeKb, icon: BookOpen },
+] as const;
 
 export default function HubPage() {
   const [meta, setMeta] = useState(EMPTY_STUDIO_META);
@@ -17,28 +23,34 @@ export default function HubPage() {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">工作台</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">秋招求职操作系统 · 改简历为主链</p>
-      </div>
+    <div className="page-shell space-y-8">
+      <header>
+        <h1 className="page-title">{copy.nav.hub}</h1>
+        <p className="page-subtitle">{copy.hub.subtitle}</p>
+      </header>
 
       <ContinueCard meta={meta} />
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <TodoList />
-        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)]">
-          <h3 className="text-sm font-semibold mb-3">快捷入口</h3>
-          <div className="flex flex-col gap-2">
-            <Link href={ROUTES.studioPrepare} className="flex items-center gap-2 text-sm text-[var(--primary)] hover:underline">
-              <PenLine size={16} /> 新建改稿
-            </Link>
-            <Link href={ROUTES.jobs} className="flex items-center gap-2 text-sm text-[var(--primary)] hover:underline">
-              <Briefcase size={16} /> 发现岗位
-            </Link>
-            <Link href={ROUTES.assets} className="flex items-center gap-2 text-sm text-[var(--primary)] hover:underline">
-              <BookOpen size={16} /> 整理知识库
-            </Link>
+      <div className="grid md:grid-cols-5 gap-4">
+        <div className="md:col-span-3">
+          <TodoList />
+        </div>
+        <div className="md:col-span-2 surface-card p-4">
+          <p className="section-label mb-3">{copy.hub.shortcuts}</p>
+          <div className="flex flex-col">
+            {SHORTCUTS.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center justify-between py-2.5 px-1 text-sm text-[var(--text-primary)] hover:text-[var(--primary)] transition-colors group"
+              >
+                <span className="flex items-center gap-2.5">
+                  <Icon size={18} className="text-[var(--text-secondary)] group-hover:text-[var(--primary)]" />
+                  {label}
+                </span>
+                <ChevronRight size={16} className="text-[var(--text-disabled)] group-hover:text-[var(--primary)]" />
+              </Link>
+            ))}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Upload,
@@ -9,21 +9,29 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldAlert,
-  Bot,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from "lucide-react";
-import AgentPanel, { AgentStep, eventToStep } from "@/components/agent/AgentPanel";
+import ThinkChainPanel, { type ThinkStep } from "@/components/studio/ThinkChainPanel";
 import KnowledgeStatusBar from "@/components/studio/KnowledgeStatusBar";
-import { api, AgentStreamEvent } from "@/lib/api";
-import { useAppStore, type DensityInfo, type FinalizeStatus } from "@/stores/useAppStore";
-import { buildOrchestrateGoal, getClientId, loadLocalMemory, saveLocalMemory } from "@/lib/userMemory";
+import { api } from "@/lib/api";
+import { useAppStore, type DensityInfo } from "@/stores/useAppStore";
+import { getClientId, loadLocalMemory } from "@/lib/userMemory";
 import { persistSessionId, persistStudioMeta } from "@/lib/sessionBootstrap";
 import MatchRadar from "@/components/match/MatchRadar";
 import GapAnalysisList from "@/components/match/GapAnalysisList";
 import ApplicationDecisionCard, { type ApplicationDecision } from "@/components/match/ApplicationDecision";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { ROUTES } from "@/lib/navigation";
+import { copy } from "@/lib/copy";
+
+function initialPipelineSteps(): ThinkStep[] {
+  return [
+    { id: "analyze_jd", label: copy.prepare.stepAnalyzeJd, status: "pending" },
+    { id: "match", label: copy.prepare.stepMatch, status: "pending" },
+    { id: "suggestions", label: copy.prepare.stepSuggestions, status: "pending" },
+  ];
+}
 
 export default function PrepareView() {
   const router = useRouter();
@@ -45,7 +53,6 @@ export default function PrepareView() {
     knowledgeBase,
     setKnowledgeBase,
     setDensity,
-    setFinalizeStatus,
     loading,
     setLoading,
     pushToast,
@@ -57,16 +64,14 @@ export default function PrepareView() {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
-  const [agentRunning, setAgentRunning] = useState(false);
-  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]);
-  const [agentOpen, setAgentOpen] = useState(false);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineSteps, setPipelineSteps] = useState<ThinkStep[]>([]);
   const [matchOpen, setMatchOpen] = useState(false);
-  const [agentConfirm, setAgentConfirm] = useState<{
-    action: string;
-    input?: Record<string, unknown>;
-    message: string;
-  } | null>(null);
   const [decision, setDecision] = useState<ApplicationDecision | null>(null);
+
+  const patchStep = useCallback((id: string, patch: Partial<ThinkStep>) => {
+    setPipelineSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
 
   useEffect(() => {
     persistStudioMeta({ step: 1, sessionId });
@@ -106,13 +111,13 @@ export default function PrepareView() {
 
   async function onFileSelect(file: File) {
     if (file.size > 10 * 1024 * 1024) {
-      setError("文件超过 10MB");
+      setError("文件不能超过 10MB");
       return;
     }
     setError("");
     setFileName(file.name);
     setLoading(true);
-    setProgress("正在解析简历...");
+    setProgress("正在读取简历…");
     try {
       const res = await api.parseResume(file);
       if (!res.success || !res.data) throw new Error(res.error || "解析失败");
@@ -122,7 +127,7 @@ export default function PrepareView() {
       setParsedResume(res.data.parsed);
       setOriginalMarkdown(res.data.markdown);
       setCurrentMarkdown(res.data.markdown);
-      pushToast("简历解析完成", "success");
+      pushToast("简历已读取", "success");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -133,18 +138,18 @@ export default function PrepareView() {
 
   async function onAnalyzeJD() {
     if (!sessionId) {
-      setError("请先上传简历");
+      setError(copy.prepare.uploadFirst);
       return;
     }
     if (jdText.trim().length < 50) {
-      setError("JD 内容过短");
+      setError(copy.prepare.jdTooShort);
       return;
     }
     setLoading(true);
-    setProgress("正在分析 JD...");
+    setProgress("正在分析岗位…");
     try {
       const res = await api.analyzeJD(sessionId, jdText);
-      if (!res.success || !res.data) throw new Error(res.error || "JD 分析失败");
+      if (!res.success || !res.data) throw new Error(res.error || "岗位分析未完成");
       setJdAnalysis(res.data.analysis);
       const m = await api.analyzeMatch(sessionId);
       if (m.success && m.data) {
@@ -157,7 +162,7 @@ export default function PrepareView() {
         company: res.data.analysis.company,
         role: res.data.analysis.role,
       });
-      pushToast("JD 分析完成", "success");
+      pushToast("岗位分析完成", "success");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -166,236 +171,234 @@ export default function PrepareView() {
     }
   }
 
-  function applyAgentSession(event: AgentStreamEvent) {
-    if (event.type !== "done" || !event.session) return;
-    const s = event.session;
-    if (s.jd_analysis) setJdAnalysis(s.jd_analysis);
-    if (s.match) setMatchResult(s.match);
-    if (s.suggestions) setSuggestions(s.suggestions);
-    if (s.current_resume_md) setCurrentMarkdown(s.current_resume_md);
-    if (s.density) setDensity(s.density as DensityInfo);
-    if (s.finalize_status) setFinalizeStatus(s.finalize_status as FinalizeStatus);
-  }
-
-  async function onAgentRun(confirmed = false) {
-    if (!sessionId || jdText.trim().length < 50) {
-      setError("请先上传简历并填写 JD");
+  async function onOneClickEdit() {
+    if (!sessionId) {
+      setError(copy.prepare.uploadFirst);
       return;
     }
-    setAgentRunning(true);
-    if (!confirmed) setAgentSteps([]);
-    await api.streamAgent(
-      {
-        session_id: sessionId,
-        jd_text: jdText,
-        knowledge_base: knowledgeBase,
-        client_id: getClientId(),
-        use_multi_agent: true,
-        confirmed,
-        confirmed_action:
-          agentConfirm && confirmed
-            ? { action: agentConfirm.action, action_input: agentConfirm.input }
-            : undefined,
-        goal: buildOrchestrateGoal(loadLocalMemory()),
-      },
-      (event) => {
-        if (event.type === "agent_phase") {
-          setAgentSteps((prev) => [
-            ...prev,
-            { id: `ph-${event.agent}`, kind: "thought", label: event.agent || "agent", detail: event.content },
-          ]);
-        }
-        const step = eventToStep(event);
-        if (step) setAgentSteps((prev) => [...prev, step]);
-        if (event.type === "confirmation_required") {
-          setAgentConfirm({ action: event.action, input: event.input, message: event.message });
-          setAgentRunning(false);
-        }
-        if (event.type === "done" && event.session) {
-          applyAgentSession(event);
-          pushToast(event.summary || "Agent 已完成", "success");
-          setAgentRunning(false);
-          setAgentConfirm(null);
-          router.push(ROUTES.studioEdit);
-        }
-      },
-      (err) => {
-        setError(err.message);
-        setAgentRunning(false);
-      }
-    );
-  }
-
-  async function onStartEdit() {
-    if (!sessionId || !jdAnalysis) {
-      setError("请先完成简历和 JD 解析");
+    if (jdText.trim().length < 50) {
+      setError(copy.prepare.needJdText);
       return;
     }
-    setLoading(true);
+
     setError("");
+    setPipelineRunning(true);
+    setPipelineSteps(initialPipelineSteps());
+
+    let analysis = jdAnalysis;
+
     try {
-      if (knowledgeBase.trim()) await api.saveKnowledgeBase(sessionId, knowledgeBase);
+      patchStep("analyze_jd", { status: "running", detail: "正在读懂岗位要求…" });
+      if (!analysis) {
+        const res = await api.analyzeJD(sessionId, jdText);
+        if (!res.success || !res.data) throw new Error(res.error || "岗位分析未完成");
+        analysis = res.data.analysis;
+        setJdAnalysis(analysis);
+        patchStep("analyze_jd", {
+          status: "done",
+          detail: `${analysis.role}${analysis.company ? ` · ${analysis.company}` : ""}`,
+        });
+      } else {
+        patchStep("analyze_jd", {
+          status: "done",
+          detail: `${analysis.role}${analysis.company ? ` · ${analysis.company}` : ""}（已分析）`,
+        });
+      }
+
+      patchStep("match", { status: "running", detail: "对照简历与岗位要求…" });
+      const m = await api.analyzeMatch(sessionId);
+      if (!m.success || !m.data) throw new Error(m.error || "匹配度计算失败");
+      setMatchResult(m.data.match);
+      if (m.data.decision) setDecision(m.data.decision as ApplicationDecision);
+      patchStep("match", {
+        status: "done",
+        detail: `匹配度 ${m.data.match.overall_score}/100${
+          m.data.decision?.label ? ` · ${m.data.decision.label}` : ""
+        }`,
+      });
+
+      patchStep("suggestions", { status: "running", detail: "结合知识库与岗位生成建议…" });
+      if (knowledgeBase.trim()) {
+        await api.saveKnowledgeBase(sessionId, knowledgeBase);
+      }
       const s = await api.generateSuggestions(sessionId, knowledgeBase);
-      if (!s.success || !s.data) throw new Error(s.error || "建议生成失败");
+      if (!s.success || !s.data) throw new Error(s.error || "建议生成失败，请重试");
       setSuggestions(s.data.suggestions);
       if (s.data.density) setDensity(s.data.density as DensityInfo);
-      persistStudioMeta({ sessionId, step: 2, company: jdAnalysis.company, role: jdAnalysis.role });
-      pushToast(`已生成 ${s.data.suggestions.length} 条建议`, "success");
+
+      patchStep("suggestions", {
+        status: "done",
+        detail: `共 ${s.data.suggestions.length} 条，进入改稿页逐条确认`,
+      });
+
+      persistStudioMeta({
+        sessionId,
+        step: 2,
+        company: analysis?.company,
+        role: analysis?.role,
+      });
+      pushToast(copy.edit.syncSuggestions(s.data.suggestions.length), "success");
+
+      await new Promise((r) => setTimeout(r, 400));
       router.push(ROUTES.studioEdit);
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      setPipelineSteps((prev) => {
+        const running = prev.find((s) => s.status === "running");
+        if (running) {
+          return prev.map((s) =>
+            s.id === running.id ? { ...s, status: "error", detail: msg } : s
+          );
+        }
+        return prev;
+      });
     } finally {
-      setLoading(false);
+      setPipelineRunning(false);
     }
   }
 
+  const canOneClick = !!sessionId && jdText.trim().length >= 50 && !pipelineRunning && !loading;
+
   return (
-  <div className="h-full overflow-auto p-4 md:p-6 max-w-5xl mx-auto">
-    <ConfirmDialog
-      open={!!agentConfirm}
-      title="Agent 需要您的确认"
-      message={agentConfirm?.message || ""}
-      confirmLabel="确认继续"
-      onConfirm={() => onAgentRun(true)}
-      onCancel={() => setAgentConfirm(null)}
-    />
-
-    <div className="flex items-center justify-between mb-4">
-      <h1 className="text-lg font-semibold">准备：简历与 JD</h1>
-      <button type="button" onClick={reset} className="text-sm text-[var(--text-secondary)] hover:underline">
-        重新开始
-      </button>
-    </div>
-
-    <div className="mb-4">
-      <KnowledgeStatusBar />
-    </div>
-
-    <div className="grid md:grid-cols-2 gap-4">
-      <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] p-4">
-        <h2 className="font-medium mb-3 flex items-center gap-2">
-          <Upload size={16} /> 上传简历
-        </h2>
-        <FileDropzone onFile={onFileSelect} />
-        {fileName && (
-          <p className="mt-2 text-sm text-[var(--text-secondary)] flex items-center gap-1">
-            <FileText size={14} /> {fileName}
-          </p>
-        )}
-        {parsedResume && (
-          <div className="mt-3 p-3 rounded-lg bg-green-50 text-sm text-green-800">
-            <CheckCircle2 size={14} className="inline mr-1" />
-            {parsedResume.header.name || "已解析"} · 教育 {parsedResume.education.length} · 实习{" "}
-            {parsedResume.experience.length}
+    <div className="h-full overflow-auto">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 pb-28">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="page-title">{copy.prepare.title}</h1>
+            <p className="page-subtitle">{copy.prepare.oneClickHint}</p>
           </div>
-        )}
-      </section>
+          <button type="button" onClick={reset} className="btn-ghost">
+            {copy.prepare.restart}
+          </button>
+        </div>
 
-      <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] p-4">
-        <h2 className="font-medium mb-3">目标 JD</h2>
-        <textarea
-          className="w-full h-48 p-3 border border-[var(--border-subtle)] rounded-lg text-sm font-mono"
-          placeholder="粘贴岗位 JD（≥ 50 字）..."
-          value={jdText}
-          onChange={(e) => setJdText(e.target.value)}
-          disabled={loading}
-        />
-        <button
-          type="button"
-          onClick={onAnalyzeJD}
-          disabled={loading || !sessionId || jdText.trim().length < 50}
-          className="mt-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm disabled:opacity-40"
-        >
-          分析 JD
-        </button>
-        {jdAnalysis && (
-          <div className="mt-3 text-sm space-y-2">
-            <p className="font-medium text-[var(--primary)]">
-              {jdAnalysis.role} {jdAnalysis.company && `· ${jdAnalysis.company}`}
-            </p>
-            {jdAnalysis.legitimacy_score < 80 && (
-              <p className="text-[var(--semantic-warning)] flex items-center gap-1">
-                <ShieldAlert size={14} /> 真实性 {jdAnalysis.legitimacy_score}/100
+        <div className="mb-5">
+          <KnowledgeStatusBar />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <section className="section-card">
+            <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4 flex items-center gap-2">
+              <Upload size={16} className="text-[var(--primary)]" />
+              {copy.prepare.upload}
+            </h2>
+            <FileDropzone onFile={onFileSelect} />
+            {fileName && (
+              <p className="mt-3 text-sm text-[var(--text-secondary)] flex items-center gap-1.5">
+                <FileText size={14} /> {fileName}
               </p>
             )}
-          </div>
-        )}
-      </section>
-    </div>
+            {parsedResume && (
+              <div className="mt-3 px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--semantic-success)]/10 text-sm text-[var(--semantic-success)] flex items-center gap-1.5">
+                <CheckCircle2 size={14} />
+                {copy.prepare.parsedSummary(
+                  parsedResume.header.name || copy.prepare.parsed,
+                  parsedResume.education.length,
+                  parsedResume.experience.length
+                )}
+              </div>
+            )}
+          </section>
 
-    {matchResult && (
-      <section className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] p-4">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between font-medium"
-          onClick={() => setMatchOpen(!matchOpen)}
-        >
-          <span>
-            匹配度 {matchResult.overall_score}/100
-            {decision && ` · ${decision.label}`}
-          </span>
-          {matchOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-        {matchOpen && (
-          <div className="mt-4 grid md:grid-cols-2 gap-4">
-            <MatchRadar dimensions={matchResult.dimensions} overallScore={matchResult.overall_score} />
-            <div>
-              {decision && <ApplicationDecisionCard decision={decision} />}
-              <GapAnalysisList gaps={matchResult.gap_analysis.slice(0, 5)} />
-            </div>
-          </div>
-        )}
-      </section>
-    )}
-
-    {error && (
-      <div className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm flex gap-2">
-        <AlertCircle size={16} /> {error}
-      </div>
-    )}
-    {progress && (
-      <div className="mt-4 p-3 rounded-lg bg-blue-50 text-blue-700 text-sm flex gap-2">
-        <Loader2 size={16} className="animate-spin" /> {progress}
-      </div>
-    )}
-
-    <section className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)]">
-      <button
-        type="button"
-        className="w-full flex items-center justify-between p-4 font-medium text-sm"
-        onClick={() => setAgentOpen(!agentOpen)}
-      >
-        <span className="flex items-center gap-2">
-          <Bot size={16} /> Agent 自动编排（可选）
-        </span>
-        {agentOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {agentOpen && (
-        <div className="px-4 pb-4">
-          <AgentPanel steps={agentSteps} running={agentRunning} />
+          <section className="section-card">
+            <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4">{copy.prepare.jdTitle}</h2>
+            <textarea
+              className="input-field h-44 font-mono resize-none"
+              placeholder={copy.prepare.jdPlaceholder}
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              disabled={loading || pipelineRunning}
+            />
+            {jdAnalysis && (
+              <div className="mt-3 text-sm space-y-1">
+                <p className="font-medium text-[var(--text-primary)]">
+                  {jdAnalysis.role}
+                  {jdAnalysis.company && <span className="text-[var(--text-secondary)] font-normal"> · {jdAnalysis.company}</span>}
+                </p>
+                {jdAnalysis.legitimacy_score < 80 && (
+                  <p className="text-[var(--semantic-warning)] flex items-center gap-1 text-xs">
+                    <ShieldAlert size={12} />
+                    {copy.prepare.legitimacyWarn(jdAnalysis.legitimacy_score)}
+                  </p>
+                )}
+              </div>
+            )}
+            {!matchResult && sessionId && jdText.trim().length >= 50 && (
+              <button
+                type="button"
+                onClick={onAnalyzeJD}
+                disabled={loading || pipelineRunning}
+                className="mt-3 text-link"
+              >
+                {loading ? copy.common.loading : copy.prepare.analyzeJd}
+              </button>
+            )}
+          </section>
         </div>
-      )}
-    </section>
 
-    <div className="mt-6 flex flex-wrap justify-end gap-3 pb-6">
-      <button
-        type="button"
-        onClick={() => onAgentRun()}
-        disabled={loading || agentRunning || !sessionId || jdText.trim().length < 50}
-        className="px-5 py-2.5 rounded-lg border border-[var(--border-subtle)] text-sm"
-      >
-        Agent 一键改稿
-      </button>
-      <button
-        type="button"
-        onClick={onStartEdit}
-        disabled={loading || !sessionId || !jdAnalysis}
-        className="px-6 py-2.5 bg-[var(--primary)] text-white rounded-lg font-medium disabled:opacity-40"
-      >
-        开始改稿 →
-      </button>
+        {matchResult && (
+          <section className="mt-4 section-card">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between text-sm font-medium"
+              onClick={() => setMatchOpen(!matchOpen)}
+            >
+              <span className="flex items-center gap-2">
+                <span className="chip-primary">{copy.prepare.matchScore(matchResult.overall_score)}</span>
+                {decision && <span className="text-[var(--text-secondary)]">{decision.label}</span>}
+              </span>
+              {matchOpen ? <ChevronUp size={18} className="text-[var(--text-secondary)]" /> : <ChevronDown size={18} className="text-[var(--text-secondary)]" />}
+            </button>
+            {matchOpen && (
+              <div className="mt-5 pt-5 border-t border-[var(--border-faint)] grid md:grid-cols-2 gap-5">
+                <MatchRadar dimensions={matchResult.dimensions} overallScore={matchResult.overall_score} />
+                <div>
+                  {decision && <ApplicationDecisionCard decision={decision} />}
+                  <GapAnalysisList gaps={matchResult.gap_analysis.slice(0, 5)} />
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {(pipelineSteps.length > 0 || pipelineRunning) && (
+          <div className="mt-4">
+            <ThinkChainPanel title={copy.prepare.pipelineTitle} steps={pipelineSteps} running={pipelineRunning} />
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 alert-error">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" /> {error}
+          </div>
+        )}
+        {progress && (
+          <div className="mt-4 alert-info">
+            <Loader2 size={16} className="shrink-0 animate-spin" /> {progress}
+          </div>
+        )}
+      </div>
+
+      <div className="sticky-cta">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <p className="text-xs text-[var(--text-secondary)] hidden sm:block">{copy.prepare.oneClickHint}</p>
+          <button
+            type="button"
+            onClick={onOneClickEdit}
+            disabled={!canOneClick}
+            className="btn-primary ml-auto"
+          >
+            {pipelineRunning ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {copy.prepare.oneClickEdit}
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
   );
 }
 
@@ -414,13 +417,11 @@ function FileDropzone({ onFile }: { onFile: (f: File) => void }) {
         const f = e.dataTransfer.files[0];
         if (f) onFile(f);
       }}
-      className={`border-2 border-dashed rounded-lg p-6 text-center text-sm ${
-        hover ? "border-[var(--primary)] bg-[var(--primary-muted)]" : "border-[var(--border-subtle)]"
-      }`}
+      className={`dropzone ${hover ? "dropzone-active" : "dropzone-idle"}`}
     >
-      <Upload className="mx-auto mb-2 text-[var(--text-disabled)]" size={28} />
-      <label className="text-[var(--primary)] cursor-pointer hover:underline">
-        选择文件
+      <Upload className="mx-auto mb-3 text-[var(--text-disabled)]" size={24} />
+      <label className="text-[var(--primary)] font-medium cursor-pointer hover:underline">
+        {copy.prepare.uploadHint}
         <input
           type="file"
           accept=".pdf,.docx,.md,.txt,.markdown"
@@ -431,7 +432,7 @@ function FileDropzone({ onFile }: { onFile: (f: File) => void }) {
           }}
         />
       </label>
-      <p className="text-xs text-[var(--text-disabled)] mt-1">PDF / DOCX / MD / TXT</p>
+      <p className="text-xs text-[var(--text-disabled)] mt-2">PDF · DOCX · MD · TXT</p>
     </div>
   );
 }

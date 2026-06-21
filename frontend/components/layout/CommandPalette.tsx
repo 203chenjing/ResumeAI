@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { ROUTES } from "@/lib/navigation";
 import { getLastStudioMeta } from "@/lib/sessionBootstrap";
 import { useAppStore } from "@/stores/useAppStore";
+import { copy } from "@/lib/copy";
 
 interface Command {
   id: string;
@@ -43,17 +44,19 @@ export default function CommandPalette({
     const base: Command[] = [
       {
         id: "continue",
-        label: last.sessionId ? `继续改稿 · ${last.company || last.role || "上次会话"}` : "继续改稿",
+        label: last.sessionId
+          ? `${copy.hub.continueEdit} · ${last.company || last.role || copy.hub.lastSession}`
+          : copy.hub.continueEdit,
         href: last.step === 3 ? ROUTES.studioExport : last.step === 1 ? ROUTES.studioPrepare : ROUTES.studioEdit,
         keywords: "继续 resume edit",
       },
-      { id: "new", label: "新建改稿", href: ROUTES.studioPrepare, keywords: "新建 upload" },
-      { id: "assets", label: "整理知识库", href: ROUTES.assets, keywords: "knowledge 知识库" },
-      { id: "jobs", label: "发现岗位", href: ROUTES.jobs, keywords: "岗位 job" },
-      { id: "tracker", label: "投递看板", href: ROUTES.tracker, keywords: "投递 tracker" },
+      { id: "new", label: copy.hub.newSession, href: ROUTES.studioPrepare, keywords: "新建 upload" },
+      { id: "assets", label: copy.hub.organizeKb, href: ROUTES.assets, keywords: "knowledge 知识库" },
+      { id: "jobs", label: copy.hub.discoverJobs, href: ROUTES.jobs, keywords: "岗位 job" },
+      { id: "tracker", label: copy.nav.tracker, href: ROUTES.tracker, keywords: "投递 tracker" },
     ];
     if (finalizeStatus === "finalized") {
-      base.push({ id: "export", label: "导出 PDF", href: ROUTES.studioExport, keywords: "pdf export" });
+      base.push({ id: "export", label: copy.export.title, href: ROUTES.studioExport, keywords: "pdf export" });
     }
     return base;
   }, [finalizeStatus]);

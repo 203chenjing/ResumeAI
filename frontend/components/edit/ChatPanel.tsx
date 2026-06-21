@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Loader2, Bot } from "lucide-react";
+import { Send, Loader2, Sparkles } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { api } from "@/lib/api";
 import { buildQuickPrompts, getClientId, loadLocalMemory, saveLocalMemory, UserMemory } from "@/lib/userMemory";
 import { applyEditChatDone, buildEditUiContext } from "@/lib/editSessionSync";
+import { copy } from "@/lib/copy";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 type PendingConfirm = {
@@ -30,6 +31,7 @@ export default function ChatPanel() {
     setDensity,
     setFilter,
     setHighlightSuggestionIds,
+    setCopilotOpen,
     suggestions,
     filter,
     pushToast,
@@ -64,6 +66,7 @@ export default function ChatPanel() {
     setDensity,
     setFilter,
     setHighlightSuggestionIds,
+    setCopilotOpen,
   };
 
   async function downloadExport() {
@@ -75,7 +78,7 @@ export default function ChatPanel() {
       a.download = "resume.pdf";
       a.click();
       URL.revokeObjectURL(url);
-      pushToast("PDF 已开始下载", "success");
+      pushToast(copy.edit.pdfDownloading, "success");
     } catch (e) {
       pushToast((e as Error).message, "error");
     }
@@ -131,14 +134,20 @@ export default function ChatPanel() {
         }
         if (event.type === "done") {
           if (event.reply) setLastAssistant(event.reply);
-          const { newCount, highlightIds } = applyEditChatDone(event, sessionSetters);
+          const { newCount, highlightIds, pendingDelta } = applyEditChatDone(event, sessionSetters);
           const pendingN = event.session?.suggestions?.filter(
             (s) => s.status === "pending" || s.status === "adjusted"
           ).length;
           if (newCount > 0) {
-            pushToast(`已同步 ${newCount} 条新建议，左侧已切换到待处理`, "success");
-          } else if (highlightIds.length > 0 || (pendingN && /待处理|修改建议/.test(event.reply || ""))) {
-            pushToast(`已在左侧高亮 ${pendingN || highlightIds.length} 条待处理建议`, "info");
+            pushToast(copy.edit.syncSuggestions(newCount), "success");
+          } else if (highlightIds.length > 0 || (pendingN && /待处理|修改建议|已生成/.test(event.reply || ""))) {
+            pushToast(copy.edit.highlightSuggestions(pendingN || highlightIds.length), "info");
+          } else if (
+            /已生成\s*\d+\s*条/.test(event.reply || "") &&
+            newCount === 0 &&
+            pendingDelta === 0
+          ) {
+            pushToast(copy.edit.syncFailed, "warning");
           }
           setStreaming(false);
         }
@@ -169,31 +178,31 @@ export default function ChatPanel() {
     <>
       <ConfirmDialog
         open={!!pendingConfirm}
-        title="请确认操作"
+        title="确认一下"
         message={pendingConfirm?.message || ""}
-        confirmLabel="确认执行"
+        confirmLabel={copy.common.confirm}
         variant={pendingConfirm?.action === "finalize_resume" ? "danger" : "warning"}
         onConfirm={onConfirmPending}
         onCancel={() => setPendingConfirm(null)}
       />
 
-      <div className="h-full flex flex-col bg-white border-l border-slate-200">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-          <Bot size={14} className="text-violet-600" />
-          <span className="text-sm font-medium">Agent 对话</span>
-          <span className="text-xs text-slate-400">可定稿/导出</span>
+      <div className="h-full flex flex-col bg-[var(--surface-container)] border-l border-[var(--border-subtle)]">
+        <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
+          <Sparkles size={14} className="text-[var(--primary)]" />
+          <span className="text-sm font-medium text-[var(--text-primary)]">{copy.edit.assistant}</span>
+          <span className="text-xs text-[var(--text-disabled)]">{copy.edit.assistantHint}</span>
         </div>
 
         <div className="flex-1 overflow-auto p-3 space-y-3 text-sm">
           {chatMessages.length === 0 && (
-            <div className="text-center text-slate-400 text-xs py-8">
-              自然语言改稿，或直接说「定稿」「导出 PDF」
+            <div className="text-center text-[var(--text-disabled)] text-xs py-8">
+              {copy.edit.assistantEmpty}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {quickPrompts.map((p) => (
                   <button
                     key={p}
                     onClick={() => send(p)}
-                    className="p-2 text-left text-xs bg-slate-100 rounded hover:bg-slate-200 text-slate-700"
+                    className="p-2 text-left text-xs bg-[var(--surface-base)] rounded hover:bg-[var(--primary-muted)] text-[var(--text-secondary)]"
                   >
                     {p}
                   </button>
@@ -206,8 +215,8 @@ export default function ChatPanel() {
               key={i}
               className={
                 m.role === "user"
-                  ? "ml-6 p-2 bg-blue-100 rounded-lg text-slate-800"
-                  : "mr-6 p-2 bg-slate-100 rounded-lg text-slate-800 whitespace-pre-wrap"
+                  ? "ml-6 p-2 bg-[var(--primary-muted)] rounded-lg text-[var(--text-primary)]"
+                  : "mr-6 p-2 bg-[var(--surface-base)] rounded-lg text-[var(--text-primary)] whitespace-pre-wrap"
               }
             >
               {m.content || (streaming && i === chatMessages.length - 1 ? "..." : "")}
@@ -215,7 +224,7 @@ export default function ChatPanel() {
           ))}
         </div>
 
-        <div className="p-3 border-t border-slate-200">
+        <div className="p-3 border-t border-[var(--border-subtle)]">
           <div className="flex gap-2">
             <input
               value={input}
@@ -226,14 +235,14 @@ export default function ChatPanel() {
                   send(input);
                 }
               }}
-              placeholder="改稿 / 定稿 / 导出…"
+              placeholder={copy.edit.assistantPlaceholder}
               disabled={streaming}
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="flex-1 px-3 py-2 border border-[var(--border-subtle)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             />
             <button
               onClick={() => send(input)}
               disabled={streaming || !input.trim()}
-              className="px-3 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:bg-slate-300"
+              className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-40"
             >
               {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>

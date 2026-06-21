@@ -51,6 +51,7 @@ async def finalize_resume_route(payload: FinalizeRequest):
             "markdown": sess.finalized_resume_md,
             "regenerated": result["regenerated"],
             "validation": result["validation"],
+            "emphasis_phrases": result.get("emphasis_phrases") or [],
             "finalize_status": sess.finalize_status,
         },
     )
@@ -67,5 +68,22 @@ async def finalize_status(session_id: str):
             "finalize_status": sess.finalize_status,
             "finalized_markdown": sess.finalized_resume_md,
             "working_markdown": sess.current_resume_md,
+        },
+    )
+
+
+@router.post("/unfinalize-resume", response_model=ApiResponse)
+async def unfinalize_resume_route(payload: FinalizeRequest):
+    """撤销定稿，回到改稿态（工作稿继续可编辑）。"""
+    sess = store.get(payload.session_id)
+    if not sess:
+        raise HTTPException(404, "会话不存在")
+    sess.finalize_status = "draft"
+    store.update(sess)
+    return ApiResponse(
+        success=True,
+        data={
+            "finalize_status": sess.finalize_status,
+            "current_resume_md": sess.current_resume_md,
         },
     )

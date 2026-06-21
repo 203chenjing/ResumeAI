@@ -55,7 +55,7 @@ export default function PendingKnowledgePanel() {
       <ul className="space-y-2 max-h-32 overflow-y-auto">
         {items.map((item) => (
           <li key={item.id} className="flex gap-2 items-start bg-white/80 p-2 rounded border border-purple-100">
-            <div className="flex-1 text-xs text-slate-700 line-clamp-2">{item.new_text}</div>
+            <div className="flex-1 text-xs text-[var(--text-secondary)] line-clamp-2">{item.new_text}</div>
             <button
               type="button"
               onClick={() => resolve(item.id, "confirm")}
@@ -67,7 +67,7 @@ export default function PendingKnowledgePanel() {
             <button
               type="button"
               onClick={() => resolve(item.id, "ignore")}
-              className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+              className="p-1 text-[var(--text-disabled)] hover:bg-[var(--surface-base)] rounded"
               title="忽略"
             >
               <X size={14} />

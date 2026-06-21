@@ -109,43 +109,46 @@ export default function ResumePreview({
         }
         .resume-preview-a4--with-photo .resume-header-row {
           display: grid;
-          grid-template-columns: 46% 29% 25%;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          column-gap: 10pt;
           width: calc(100% - 64pt);
           max-width: calc(100% - 64pt);
           font-size: 10.5pt;
           font-weight: 700;
           margin: 0 0 2pt;
+          align-items: baseline;
         }
         .resume-preview-a4--with-photo .resume-header-row > span {
           display: block;
         }
         .resume-preview-a4--with-photo .resume-header-row .col-left {
           white-space: nowrap;
+          text-align: left;
         }
         .resume-preview-a4 .resume-header-row {
-          display: table;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          column-gap: 10pt;
           width: 100%;
-          table-layout: fixed;
           font-size: 10.5pt;
           font-weight: 700;
           margin: 0 0 2pt;
+          align-items: baseline;
         }
         .resume-preview-a4 .resume-header-row > span {
-          display: table-cell;
-          vertical-align: bottom;
+          display: block;
         }
         .resume-preview-a4 .resume-header-row .col-left {
           text-align: left;
-          width: 46%;
           white-space: nowrap;
-        }
-        .resume-preview-a4 .resume-header-row .col-left.long-left {
-          font-size: 8.5pt;
         }
         .resume-preview-a4 .resume-header-row .col-mid,
         .resume-preview-a4 .resume-header-row .col-right {
-          text-align: center;
+          text-align: right;
           white-space: nowrap;
+        }
+        .resume-preview-a4 .resume-header-row .col-right {
+          min-width: 5.5em;
         }
       `}</style>
     </div>

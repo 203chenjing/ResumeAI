@@ -4,9 +4,11 @@ import ToastContainer from "@/components/ui/Toast";
 import SessionBootstrap from "@/components/layout/SessionBootstrap";
 import AppShell from "@/components/layout/AppShell";
 
+import { copy } from "@/lib/copy";
+
 export const metadata: Metadata = {
-  title: "ResumeAI · 智能简历修改",
-  description: "JD 驱动的简历智能修改工具，导出 A4 单页 PDF",
+  title: `${copy.product.name} · ${copy.product.tagline}`,
+  description: copy.product.metaDescription,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

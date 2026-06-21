@@ -5,10 +5,10 @@ import { useAppStore, type DensityInfo, type FinalizeStatus } from "@/stores/use
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import SuggestionCard from "./SuggestionCard";
-import { Filter, CheckCheck } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 import clsx from "clsx";
 import { applyEditChatDone, buildEditUiContext } from "@/lib/editSessionSync";
-
+import { copy } from "@/lib/copy";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function SuggestionPanel() {
@@ -77,8 +77,12 @@ export default function SuggestionPanel() {
         }
         if (res.data.finalize_status) setFinalizeStatus(res.data.finalize_status as FinalizeStatus);
 
-        const labels = { accepted: "已接受", rejected: "已拒绝", pending: "已撤销" };
-        pushToast(`建议 ${labels[status]}`, status === "accepted" ? "success" : "info");
+        const labels = {
+          accepted: copy.edit.statusAccepted,
+          rejected: copy.edit.statusRejected,
+          pending: copy.edit.statusUndo,
+        };
+        pushToast(`建议${labels[status]}`, status === "accepted" ? "success" : "info");
       }
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -93,7 +97,7 @@ export default function SuggestionPanel() {
       const res = await api.adjustSuggestion(sessionId, id, instruction);
       if (res.success && res.data) {
         upsertSuggestion(res.data.updated);
-        pushToast("建议已按指令调整", "success");
+        pushToast(copy.edit.adjusted, "success");
       }
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -119,7 +123,7 @@ export default function SuggestionPanel() {
         (event) => {
           if (event.type === "done") {
             applyEditChatDone(event, sessionSetters);
-            pushToast(event.reply || "已批量处理建议", "success");
+            pushToast(event.reply || copy.edit.batchDone, "success");
           }
         },
         (err) => pushToast(err.message, "error")
@@ -138,49 +142,49 @@ export default function SuggestionPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-[var(--surface-base)]">
       <ConfirmDialog
         open={batchConfirm}
-        title="批量接受安全建议"
-        message={`将自动接受 ${counts.pending} 条待处理建议中的「安全」项（跳过 delete/过稀时的 structure），是否继续？`}
-        confirmLabel="确认接受"
+        title={copy.edit.batchSafeTitle}
+        message={copy.edit.batchSafeMsg(counts.pending)}
+        confirmLabel={copy.edit.batchConfirm}
         onConfirm={acceptAllSafe}
         onCancel={() => setBatchConfirm(false)}
       />
-      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-2 flex-wrap">
-        <Filter size={14} className="text-slate-500" />
-        <span className="text-sm font-medium">修改建议 ({counts.all})</span>
+      <div className="toolbar">
+        <span className="text-sm font-medium text-[var(--text-primary)]">{copy.edit.suggestions(counts.all)}</span>
         {counts.pending > 0 && (
           <button
             type="button"
             disabled={batchBusy}
             onClick={() => setBatchConfirm(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="btn-primary text-xs py-1.5"
+            style={{ background: "var(--semantic-success)" }}
           >
-            <CheckCheck size={12} /> 安全批量接受
+            <CheckCheck size={12} /> {copy.edit.batchSafe}
           </button>
         )}
-        <div className="ml-auto flex gap-1">
+        <div className="ml-auto flex gap-0.5 p-0.5 rounded-[var(--radius-full)] bg-[var(--surface-base)]">
           {(["all", "pending", "accepted", "rejected"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={clsx(
-                "px-2 py-1 rounded text-xs",
-                filter === f ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                "filter-chip",
+                filter === f ? "filter-chip-active" : "filter-chip-inactive"
               )}
             >
-              {f === "all" ? "全部" : f === "pending" ? "待处理" : f === "accepted" ? "已接受" : "已拒绝"}
+              {f === "all" ? copy.edit.filterAll : f === "pending" ? copy.edit.filterPending : f === "accepted" ? copy.edit.filterAccepted : copy.edit.filterRejected}
               <span className="ml-1 opacity-70">{counts[f]}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div ref={listRef} className="flex-1 overflow-auto p-3 space-y-3">
+      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
         {filtered.length === 0 && (
-          <div className="text-center text-sm text-slate-500 py-8">
-            {filter === "pending" ? "暂无待处理建议" : "暂无建议"}
+          <div className="empty-state">
+            {filter === "pending" ? copy.edit.noPending : copy.edit.noSuggestions}
           </div>
         )}
         {filtered.map((s) => (

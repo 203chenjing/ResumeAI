@@ -12,6 +12,7 @@ import { ROUTES } from "@/lib/navigation";
 import { useAppStore } from "@/stores/useAppStore";
 import type { CompareRow, JobPosting } from "@/lib/types";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { copy } from "@/lib/copy";
 
 function CompareContent() {
   const router = useRouter();
@@ -51,31 +52,29 @@ function CompareContent() {
   return (
     <>
       <Header />
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <Link href="/jobs" className="text-sm text-blue-600 flex items-center gap-1 mb-4">
-          <ArrowLeft size={14} /> 返回岗位列表
+      <main className="page-shell">
+        <Link href={ROUTES.jobs} className="text-link flex items-center gap-1 mb-4">
+          <ArrowLeft size={14} /> {copy.jobs.compareBack}
         </Link>
-        <h1 className="text-2xl font-bold mb-2">多岗位对比矩阵</h1>
-        <p className="text-sm text-slate-500 mb-6">
-          混合匹配：BM25 ×0.42 + 技能图谱 ×0.33 + Jaccard ×0.25 + 偏好加权
-        </p>
+        <h1 className="page-title text-2xl mb-2">{copy.jobs.compareTitle}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mb-6">{copy.jobs.compareSubtitle}</p>
 
         {loading ? (
-          <Loader2 className="animate-spin mx-auto text-slate-400" />
+          <Loader2 className="animate-spin mx-auto text-[var(--text-disabled)]" />
         ) : rows.length === 0 ? (
-          <p className="text-slate-500">请从岗位页选择至少 2 个岗位进行对比</p>
+          <p className="text-[var(--text-secondary)]">{copy.jobs.compareNeedTwo}</p>
         ) : (
           <>
-            <div className="overflow-x-auto mb-6 bg-white border rounded-xl">
+            <div className="overflow-x-auto mb-6 surface-card">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="bg-[var(--surface-base)] text-[var(--text-secondary)]">
                   <tr>
                     <th className="p-3 text-left">公司</th>
                     <th className="p-3 text-left">岗位</th>
-                    <th className="p-3 text-left">混合分</th>
-                    <th className="p-3 text-left">BM25</th>
-                    <th className="p-3 text-left">技能</th>
-                    <th className="p-3 text-left">决策</th>
+                    <th className="p-3 text-left">{copy.jobs.compareOverall}</th>
+                    <th className="p-3 text-left">{copy.jobs.compareKeyword}</th>
+                    <th className="p-3 text-left">{copy.jobs.compareSkill}</th>
+                    <th className="p-3 text-left">{copy.jobs.compareDecision}</th>
                     <th className="p-3" />
                   </tr>
                 </thead>
@@ -83,21 +82,21 @@ function CompareContent() {
                   {rows.map((r, i) => (
                     <tr
                       key={r.job_id}
-                      className={`border-t ${active === i ? "bg-blue-50" : ""}`}
+                      className={`border-t border-[var(--border-subtle)] ${active === i ? "bg-[var(--primary-muted)]" : ""}`}
                     >
-                      <td className="p-3 font-medium">{r.company}</td>
-                      <td className="p-3">{r.role}</td>
-                      <td className="p-3 font-bold text-blue-700">{r.decision.match_score}</td>
-                      <td className="p-3 text-slate-500">{r.score_breakdown?.bm25 ?? "—"}</td>
-                      <td className="p-3 text-slate-500">{r.score_breakdown?.skill ?? "—"}</td>
-                      <td className="p-3 text-xs">{r.decision.label}</td>
+                      <td className="p-3 font-medium text-[var(--text-primary)]">{r.company}</td>
+                      <td className="p-3 text-[var(--text-primary)]">{r.role}</td>
+                      <td className="p-3 font-bold text-[var(--primary)]">{r.decision.match_score}</td>
+                      <td className="p-3 text-[var(--text-secondary)]">{r.score_breakdown?.bm25 ?? "—"}</td>
+                      <td className="p-3 text-[var(--text-secondary)]">{r.score_breakdown?.skill ?? "—"}</td>
+                      <td className="p-3 text-xs text-[var(--text-secondary)]">{r.decision.label}</td>
                       <td className="p-3">
                         <button
                           type="button"
                           onClick={() => setActive(i)}
-                          className="text-xs text-blue-600 hover:underline"
+                          className="text-xs text-link"
                         >
-                          详情
+                          {copy.jobs.compareDetail}
                         </button>
                       </td>
                     </tr>
@@ -108,8 +107,8 @@ function CompareContent() {
 
             {current && (
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-white border rounded-xl p-4">
-                  <h2 className="font-semibold mb-3">
+                <div className="surface-card p-4">
+                  <h2 className="font-semibold mb-3 text-[var(--text-primary)]">
                     {current.company} · {current.role}
                   </h2>
                   <MatchRadar
@@ -119,9 +118,11 @@ function CompareContent() {
                 </div>
                 <div className="space-y-4">
                   <ApplicationDecisionCard decision={current.decision} />
-                  <div className="bg-white border rounded-xl p-4">
-                    <h3 className="text-sm font-medium mb-2">主要差距</h3>
-                    <ul className="text-sm text-slate-600 space-y-1">
+                  <div className="surface-card p-4">
+                    <h3 className="text-sm font-medium mb-2 text-[var(--text-primary)]">
+                      {copy.jobs.compareGaps}
+                    </h3>
+                    <ul className="text-sm text-[var(--text-secondary)] space-y-1">
                       {current.decision.top_gaps.map((g) => (
                         <li key={g}>· {g}</li>
                       ))}
@@ -130,9 +131,9 @@ function CompareContent() {
                   <button
                     type="button"
                     onClick={() => startStudio(current.job_id)}
-                    className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-lg text-sm"
+                    className="w-full btn-primary justify-center py-2.5"
                   >
-                    <Sparkles size={14} /> 为此岗位改简历
+                    <Sparkles size={14} /> {copy.jobs.compareStartEdit}
                   </button>
                 </div>
               </div>
@@ -146,7 +147,7 @@ function CompareContent() {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-400">加载中…</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-disabled)]">{copy.common.loading}</div>}>
       <CompareContent />
     </Suspense>
   );

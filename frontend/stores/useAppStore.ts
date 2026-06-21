@@ -169,7 +169,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   studioFromJob: null,
   setStudioFromJob: (j) => set({ studioFromJob: j }),
-  copilotOpen: true,
+  copilotOpen: false,
   setCopilotOpen: (v) => set({ copilotOpen: v }),
 
   density: null,
@@ -204,7 +204,7 @@ export const useAppStore = create<AppState>((set) => ({
       chatMessages: [],
       knowledgeBase: "",
       studioFromJob: null,
-      copilotOpen: true,
+      copilotOpen: false,
       density: null,
       toasts: [],
       filter: "all",

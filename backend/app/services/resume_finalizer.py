@@ -9,6 +9,7 @@ from app.prompts.finalize_resume import build_finalize_prompt
 from app.services.llm_client import client
 from app.services.photo_context import photo_context_for_session
 from app.services.pdf_exporter import validate_resume_markdown
+from app.services.resume_emphasis import apply_export_emphasis
 from app.services.profile_photo import (
     apply_photo_to_markdown,
     has_session_photo,
@@ -44,10 +45,29 @@ async def finalize_resume(sess: Session) -> dict:
             + ("；".join(issues) if issues else "请检查内容长度与格式")
         )
 
+    pre_emphasis_md = working_md
+    working_md, emphasis_phrases = await apply_export_emphasis(sess, working_md)
+    # 加粗后重新校验页数（通常不变，防止极端情况溢出）
+    post_validation = validate_resume_markdown(working_md, session_id=sess.session_id)
+    if post_validation.get("page_count", 1) > 1:
+        logger.warning("Emphasis caused multi-page PDF, reverting emphasis")
+        working_md = pre_emphasis_md
+        emphasis_phrases = []
+    else:
+        validation = {
+            **validation,
+            **{
+                k: post_validation[k]
+                for k in ("page_count", "page_passed", "bottom_gap_mm", "layout_issues")
+                if k in post_validation
+            },
+        }
+
     return {
         "markdown": working_md,
         "regenerated": regenerated,
         "validation": validation,
+        "emphasis_phrases": emphasis_phrases,
     }
 
 

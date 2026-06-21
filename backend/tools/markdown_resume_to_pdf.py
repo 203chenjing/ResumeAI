@@ -125,8 +125,8 @@ h1 {{
 }}
 body.has-photo .resume-header-row {{
     display: grid;
-    grid-template-columns: 46% 29% 25%;
-    column-gap: 0;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 10pt;
     align-items: baseline;
     width: calc(100% - {photo_reserve}pt);
     max-width: calc(100% - {photo_reserve}pt);
@@ -137,11 +137,13 @@ body.has-photo .resume-header-row > span {{
 body.has-photo .resume-header-row .col-left {{
     white-space: nowrap;
     word-break: keep-all;
+    text-align: left;
+    min-width: 0;
 }}
-body.has-photo .col-mid,
-body.has-photo .col-right {{
-    text-align: center;
+body.has-photo .resume-header-row .col-mid,
+body.has-photo .resume-header-row .col-right {{
     white-space: nowrap;
+    text-align: right;
 }}
 h2 {{
     font-size: 12.5pt;
@@ -174,37 +176,33 @@ ol li {{
     text-align: justify;
 }}
 .resume-header-row {{
-    display: table;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 10pt;
+    align-items: baseline;
     width: 100%;
-    table-layout: fixed;
     font-size: 10.5pt;
     font-weight: 700;
     margin: 0 0 2pt 0;
     line-height: {line_height};
 }}
 .resume-header-row > span {{
-    display: table-cell;
-    vertical-align: bottom;
+    display: block;
 }}
 .resume-header-row .col-left {{
     text-align: left;
-    width: 46%;
     white-space: nowrap;
     word-break: keep-all;
-}}
-.resume-header-row .col-left.long-left {{
-    font-size: 8.5pt;
-    line-height: 1.2;
+    min-width: 0;
 }}
 .resume-header-row .col-mid {{
-    text-align: center;
-    width: 29%;
+    text-align: right;
     white-space: nowrap;
 }}
 .resume-header-row .col-right {{
-    text-align: center;
-    width: 25%;
+    text-align: right;
     white-space: nowrap;
+    min-width: 5.5em;
 }}
 strong {{
     font-weight: 700;
@@ -341,12 +339,23 @@ def _merge_header_continuations(md: str) -> str:
     out: list[str] = []
     i = 0
     header_re = re.compile(
-        r"^\*\*([^*]+)\*\*\s{2,}(.+?)\s{2,}(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$"
+        r"^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$"
     )
     suffix_re = re.compile(r"^[\(（][^)）]+[\)）]?\s*有限公司$|^有限公司$")
+    school_only_re = re.compile(r"^\*\*([^*]+)\*\*\s*$")
+    tail_date_re = re.compile(
+        r"^(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$"
+    )
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
+        school_only = school_only_re.match(stripped)
+        if school_only and i + 1 < len(lines):
+            nxt = lines[i + 1].strip()
+            tail = tail_date_re.match(nxt)
+            if tail and not nxt.startswith(("**", "#")):
+                line = f"**{school_only.group(1)}**  {tail.group(1).strip()}  {tail.group(2).strip()}"
+                i += 1
         m = header_re.match(stripped) if stripped.startswith("**") else None
         if m and i + 1 < len(lines):
             nxt = lines[i + 1].strip()
@@ -362,10 +371,9 @@ def _merge_header_continuations(md: str) -> str:
 
 def _header_row_html(left: str, mid: str, right: str) -> str:
     left_clean = _normalize_header_left(left)
-    long_cls = " long-left" if len(left_clean) > HEADER_LONG_NAME_THRESHOLD else ""
     return (
         '<div class="resume-header-row">'
-        f'<span class="col-left{long_cls}"><strong>{left_clean}</strong></span>'
+        f'<span class="col-left"><strong>{left_clean}</strong></span>'
         f'<span class="col-mid">{mid}</span>'
         f'<span class="col-right">{right}</span>'
         "</div>"
@@ -381,17 +389,25 @@ def _parse_header_line(line: str) -> str | None:
     stripped = line.strip()
     if not stripped.startswith("**"):
         return None
+    # 实习：公司  职位  时间（允许 1 个及以上空格）
     m = re.match(
-        r"^\*\*([^*]+)\*\*\s{2,}(.+?)\s{2,}(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$",
+        r"^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+)|至今)\s*$",
+        stripped,
+    )
+    if m:
+        return _header_row_html(m.group(1), m.group(2).strip(), m.group(3).strip())
+    # 教育：学校  专业，时间 或 学校  专业  时间
+    m = re.match(
+        r"^\*\*([^*]+)\*\*\s+(.+?)[，,]\s*(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$",
         stripped,
     )
     if m:
         return _header_row_html(m.group(1), m.group(2).strip(), m.group(3).strip())
     m = re.match(
-        r"^\*\*([^*]+)\*\*\s{2,}(.+?)[，,]\s*(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$",
+        r"^\*\*([^*]+)\*\*\s+(.+?)\s+(\d{4}\.\d{2}(?:-\d{4}\.\d{2}|-\S+))\s*$",
         stripped,
     )
-    if m:
+    if m and ("学院" in m.group(2) or "硕士" in m.group(2) or "学士" in m.group(2) or "大学" in m.group(2)):
         return _header_row_html(m.group(1), m.group(2).strip(), m.group(3).strip())
     return None
 
@@ -445,6 +461,90 @@ def _rectangles_overlap(
     right = min(a[2], b[2])
     bottom = min(a[3], b[3])
     return right - left > 0.5 and bottom - top > 0.5
+
+
+A4_HEIGHT_PT = 841.89
+BOTTOM_MARGIN_CM = 0.8
+MAX_BOTTOM_GAP_MM = 20.0
+
+
+def _cm_to_pt(cm: float) -> float:
+    return cm / 2.54 * 72
+
+
+def check_markdown_spacing(md: str) -> list[str]:
+    """检查 Markdown 中可能导致版面空隙过大的空行。"""
+    issues: list[str] = []
+    if re.search(r"\n{4,}", md):
+        issues.append("存在多余空行，可能造成版面空隙")
+    if re.search(r"\n{3,}\s*$", md):
+        issues.append("文末有多余空行，页底可能留白偏大")
+    return issues
+
+
+def measure_pdf_bottom_gap(pdf_path: Path) -> dict:
+    """测量单页 PDF 最后一行文字到可排版区域底部的距离（mm）。"""
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        return {"ok": True, "bottom_gap_mm": None, "issues": []}
+
+    try:
+        document = fitz.open(str(pdf_path))
+        if len(document) != 1:
+            document.close()
+            return {
+                "ok": False,
+                "bottom_gap_mm": None,
+                "issues": ["非单页 PDF，无法测量底部空白"],
+            }
+
+        page = document[0]
+        page_height = float(page.rect.height)
+        content_bottom_y = page_height - _cm_to_pt(BOTTOM_MARGIN_CM)
+
+        last_text_bottom = 0.0
+        for block in page.get_text("dict").get("blocks", []):
+            if block.get("type") != 0:
+                continue
+            bbox = block.get("bbox", ())
+            if len(bbox) == 4:
+                text = "".join(
+                    span.get("text", "")
+                    for line in block.get("lines", [])
+                    for span in line.get("spans", [])
+                )
+                if text.strip():
+                    last_text_bottom = max(last_text_bottom, float(bbox[3]))
+
+        document.close()
+
+        if last_text_bottom <= 0:
+            return {
+                "ok": False,
+                "bottom_gap_mm": None,
+                "issues": ["未检测到正文文字块"],
+            }
+
+        gap_pt = content_bottom_y - last_text_bottom
+        gap_mm = gap_pt / 72 * 25.4
+        issues: list[str] = []
+        if gap_mm > MAX_BOTTOM_GAP_MM:
+            issues.append(
+                f"页底留白约 {gap_mm:.0f}mm，偏多，建议补充经历或返回改稿"
+            )
+        return {
+            "ok": not issues,
+            "bottom_gap_mm": round(gap_mm, 1),
+            "issues": issues,
+        }
+    except Exception as exc:
+        return {"ok": False, "bottom_gap_mm": None, "issues": [f"无法测量页底空白: {exc}"]}
+
+
+def validate_pdf_bottom_whitespace(pdf_path: Path) -> list[str]:
+    """校验页底空白是否超标。"""
+    return measure_pdf_bottom_gap(pdf_path).get("issues", [])
 
 
 def validate_pdf_photo_layout(pdf_path: Path) -> list[str]:

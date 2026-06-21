@@ -7,6 +7,7 @@ backend/exports/*.md
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+frontend/tsconfig.tsbuildinfo
 *.log
 .DS_Store
 test-*.json

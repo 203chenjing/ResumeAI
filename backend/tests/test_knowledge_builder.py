@@ -38,6 +38,17 @@ async def test_expand_star(monkeypatch):
     assert "待确认" in out or "Result" in out
 
 
+def test_parse_chat_response_unclosed_kb_update():
+    raw = """[CHAT_REPLY]已添加项目经历[/CHAT_REPLY]
+[KB_UPDATE]
+## 实习 / 项目素材
+### 新公司 · 开发 · 2024.01-2024.06
+- Situation: [待补充：背景]
+"""
+    parsed = kb._parse_chat_response(raw)
+    assert "新公司" in parsed["updated_markdown"]
+
+
 def test_parse_chat_response_with_kb_update():
     raw = """[CHAT_REPLY]
 已整理实习项目素材。
@@ -49,6 +60,40 @@ def test_parse_chat_response_with_kb_update():
     parsed = kb._parse_chat_response(raw)
     assert "已整理" in parsed["reply"]
     assert "携程" in parsed["updated_markdown"]
+
+
+def test_find_changed_heading_new_project():
+    old = "## 实习 / 项目素材\n### 旧项目"
+    new = "## 实习 / 项目素材\n### 旧项目\n### 新公司 · 岗位"
+    assert kb._find_changed_heading(old, new, None) == "新公司 · 岗位"
+
+
+def test_bundle_preserves_user_message():
+    long_kb = "x" * 9000
+    bundled = kb._bundle_chat_prompt(
+        long_kb,
+        "请添加一段项目经历",
+        [{"role": "user", "content": "之前的话"}],
+        {"selected_section_title": "实习"},
+    )
+    assert bundled.endswith("user: 请添加一段项目经历")
+    assert "请添加一段项目经历" in bundled
+
+
+@pytest.mark.asyncio
+async def test_chat_knowledge_merges_fragment(monkeypatch):
+    async def fake_chat_text(_sys, _user, **kwargs):
+        return """[CHAT_REPLY]已添加[/CHAT_REPLY]
+[KB_UPDATE]
+### 测试公司 · 工程师 · 2024.01-2024.03
+- Action: [待补充：做了什么]
+[/KB_UPDATE]"""
+
+    monkeypatch.setattr(kb.client, "chat_text", fake_chat_text)
+    old = "## 实习 / 项目素材\n### 旧项目\n- 事实"
+    result = await kb.chat_knowledge(old, "添加项目", ui_context={})
+    assert "测试公司" in result["updated_markdown"]
+    assert "旧项目" in result["updated_markdown"]
 
 
 @pytest.mark.asyncio

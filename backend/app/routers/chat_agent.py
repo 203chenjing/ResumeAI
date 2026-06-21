@@ -42,6 +42,9 @@ async def edit_chat_agent(payload: EditChatRequest):
 
     async def event_generator():
         full_reply = ""
+        pending_before = len(
+            [s for s in sess.suggestions if s.status in ("pending", "adjusted")]
+        )
         try:
             async for event in stream_edit_chat(
                 sess,
@@ -66,13 +69,23 @@ async def edit_chat_agent(payload: EditChatRequest):
                         if patch:
                             event["ui_patch"] = patch
                     elif not event.get("ui_patch"):
-                        patch = build_ui_patch_for_pending(
-                            sess,
-                            user_message=payload.message,
-                            reply=event.get("reply") or full_reply,
-                        )
-                        if patch:
-                            event["ui_patch"] = patch
+                        pending_now = [
+                            s for s in sess.suggestions if s.status in ("pending", "adjusted")
+                        ]
+                        if len(pending_now) > pending_before:
+                            patch = build_ui_patch_for_suggestions(
+                                [s.model_dump() for s in pending_now]
+                            )
+                            if patch:
+                                event["ui_patch"] = patch
+                        if not event.get("ui_patch"):
+                            patch = build_ui_patch_for_pending(
+                                sess,
+                                user_message=payload.message,
+                                reply=event.get("reply") or full_reply,
+                            )
+                            if patch:
+                                event["ui_patch"] = patch
                 yield {"event": "message", "data": json.dumps(event, ensure_ascii=False)}
         except Exception as e:
             logger.exception("edit chat agent error")

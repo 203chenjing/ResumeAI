@@ -51,7 +51,7 @@ def _review_policy(client_id: str) -> str:
 
 def _confirm_message(action: str, action_input: dict, sess: Session, client_id: str = "default") -> str:
     if action == "review_suggestions":
-        n = len([s for s in sess.suggestions if s.status == "pending"])
+        n = len([s for s in sess.suggestions if s.status in ("pending", "adjusted")])
         policy = action_input.get("policy") or _review_policy(client_id)
         return f"将批量处理 {n} 条待审建议（策略：{policy}），是否继续？"
     if action == "finalize_resume":
@@ -70,6 +70,19 @@ def _after_action_reply(action: str, result: dict) -> str:
         return "定稿成功，可在左侧查看定稿预览，或说「导出」下载 PDF。"
     if action == "prepare_export":
         return "已准备好导出，正在触发下载…"
+    if action == "generate_suggestions":
+        n = result.get("count", 0)
+        summary = result.get("summary")
+        if isinstance(summary, dict):
+            n = summary.get("total", n)
+        return f"已生成 {n} 条修改建议，请在左侧「待处理」查看并逐条确认。"
+    if action == "build_resume_from_knowledge":
+        n = result.get("suggestions_count", 0)
+        chars = result.get("chars", 0)
+        base = f"已根据知识库生成简历（约 {chars} 字），左侧预览已更新。"
+        if n:
+            return base + f" 同时生成 {n} 条修改建议，请在「待处理」查看。"
+        return base
     if action == "get_state":
         n = result.get("pending_count", 0)
         if n > 0:

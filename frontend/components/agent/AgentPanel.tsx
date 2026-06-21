@@ -1,7 +1,8 @@
 "use client";
 
-import { Bot, CheckCircle2, Loader2, Wrench } from "lucide-react";
+import { Sparkles, CheckCircle2, Loader2, Wrench } from "lucide-react";
 import type { AgentStreamEvent } from "@/lib/api";
+import { copy } from "@/lib/copy";
 
 export type AgentStep = {
   id: string;
@@ -14,10 +15,10 @@ export type AgentStep = {
 const TOOL_LABELS: Record<string, string> = {
   get_state: "读取会话状态",
   save_knowledge_base: "保存知识库",
-  analyze_jd: "分析 JD",
+  analyze_jd: "分析岗位",
   analyze_match: "计算匹配度",
   generate_suggestions: "生成修改建议",
-  review_suggestions: "智能审阅建议",
+  review_suggestions: "审阅建议",
   finalize_resume: "确认定稿",
   finish: "完成任务",
 };
@@ -53,7 +54,7 @@ export function eventToStep(event: AgentStreamEvent): AgentStep | null {
     };
   }
   if (event.type === "agent_phase") {
-    return { id: `phase-${event.agent}`, kind: "thought", label: `${event.agent} Agent`, detail: event.content };
+    return { id: `phase-${event.agent}`, kind: "thought", label: event.agent || "助手", detail: event.content };
   }
   if (event.type === "confirmation_required") {
     return { id: "confirm", kind: "confirm", label: "等待确认", detail: event.message, ok: undefined };
@@ -77,31 +78,31 @@ export default function AgentPanel({
   if (!steps.length && !running) return null;
 
   return (
-    <section className="mt-6 bg-gradient-to-br from-violet-50 to-white rounded-xl border border-violet-200 p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Bot size={18} className="text-violet-600" />
-        <h2 className="font-semibold text-lg text-slate-900">Agent 执行过程</h2>
-        {running && <Loader2 size={16} className="animate-spin text-violet-500" />}
+    <section className="surface-card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles size={16} className="text-[var(--primary)]" />
+        <h2 className="text-sm font-medium text-[var(--text-primary)]">{copy.prepare.pipelineTitle}</h2>
+        {running && <Loader2 size={14} className="animate-spin text-[var(--primary)]" />}
       </div>
       <ol className="space-y-2">
         {steps.map((s) => (
           <li
             key={s.id}
-            className={`flex items-start gap-3 text-sm p-2 rounded-lg ${
-              s.kind === "thought" ? "bg-white/60 text-slate-600 italic" : "bg-white"
+            className={`flex items-start gap-3 text-sm p-2 rounded-lg bg-[var(--surface-base)] ${
+              s.kind === "thought" ? "italic text-[var(--text-secondary)]" : ""
             }`}
           >
-            {s.kind === "tool_call" && <Wrench size={14} className="text-violet-500 mt-0.5 shrink-0" />}
+            {s.kind === "tool_call" && <Wrench size={14} className="text-[var(--primary)] mt-0.5 shrink-0" />}
             {s.kind === "tool_result" && (
               <CheckCircle2
                 size={14}
-                className={`mt-0.5 shrink-0 ${s.ok ? "text-green-500" : "text-red-500"}`}
+                className={`mt-0.5 shrink-0 ${s.ok ? "text-green-600" : "text-[var(--semantic-danger)]"}`}
               />
             )}
             {s.kind === "done" && <CheckCircle2 size={14} className="text-green-600 mt-0.5 shrink-0" />}
             <div>
-              <div className="font-medium text-slate-800">{s.label}</div>
-              {s.detail && <div className="text-slate-600 text-xs mt-0.5">{s.detail}</div>}
+              <div className="font-medium text-[var(--text-primary)]">{s.label}</div>
+              {s.detail && <div className="text-[var(--text-secondary)] text-xs mt-0.5">{s.detail}</div>}
             </div>
           </li>
         ))}

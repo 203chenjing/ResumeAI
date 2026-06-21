@@ -49,7 +49,7 @@ def test_transform_header_rows_internship_long_company():
     md = "**携程计算机技术（上海）有限公司**  AI 搜索产品实习生  2025.12-至今"
     out = transform_header_rows(md)
     assert "resume-header-row--stacked" not in out
-    assert "long-left" in out
+    assert "long-left" not in out
     assert "携程计算机技术（上海）有限公司" in out
     assert "AI 搜索产品实习生" in out
     assert "col-mid" in out
@@ -86,3 +86,13 @@ def test_preprocess_strips_photo_and_injects_html(tmp_path):
     assert 'class="photo"' in photo_html
     assert "![个人照片]" not in processed
     assert "个人照片" in photo_html
+
+
+def test_check_markdown_spacing_detects_blank_lines():
+    from tools.markdown_resume_to_pdf import check_markdown_spacing
+
+    issues = check_markdown_spacing("## A\n\n\n\n\n## B")
+    assert any("空行" in i for i in issues)
+
+    tail_issues = check_markdown_spacing("## A\n内容\n\n\n")
+    assert any("文末" in i for i in tail_issues)

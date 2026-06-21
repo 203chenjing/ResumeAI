@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { MatchDimension } from "@/lib/types";
+import { copy } from "@/lib/copy";
 
 export default function MatchRadar({
   dimensions,
@@ -26,26 +27,28 @@ export default function MatchRadar({
 
   if (!data.length) {
     return (
-      <div className="text-sm text-slate-500 py-8 text-center">暂无匹配维度数据</div>
+      <div className="text-sm text-[var(--text-secondary)] py-8 text-center">
+        {copy.match.noDimensions}
+      </div>
     );
   }
 
   return (
     <div className="w-full">
       <div className="text-center mb-2">
-        <span className="text-3xl font-bold text-blue-600">{overallScore}</span>
-        <span className="text-slate-500 text-sm ml-1">/ 100</span>
+        <span className="text-3xl font-bold text-[var(--primary)]">{overallScore}</span>
+        <span className="text-[var(--text-secondary)] text-sm ml-1">/ 100</span>
       </div>
       <ResponsiveContainer width="100%" height={260}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid stroke="#e2e8f0" />
-          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#64748b" }} />
+          <PolarGrid stroke="var(--border-subtle)" />
+          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
           <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
           <Radar
             name="匹配度"
             dataKey="score"
-            stroke="#2563eb"
-            fill="#3b82f6"
+            stroke="var(--primary)"
+            fill="var(--primary)"
             fillOpacity={0.35}
           />
         </RadarChart>

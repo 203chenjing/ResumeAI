@@ -1,5 +1,7 @@
 /** 路由常量与 AppShell 模式判断 */
 
+import { copy } from "./copy";
+
 export const ROUTES = {
   hub: "/",
   assets: "/assets",
@@ -50,10 +52,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: ROUTES.hub, label: "工作台", icon: "home", section: "main" },
-  { href: ROUTES.assets, label: "知识库", icon: "book", section: "main" },
-  { href: ROUTES.jobs, label: "岗位", icon: "briefcase", section: "main" },
-  { href: ROUTES.tracker, label: "投递", icon: "tracker", section: "main" },
-  { href: ROUTES.insights, label: "洞察", icon: "chart", section: "main" },
-  { href: ROUTES.studioPrepare, label: "改简历", icon: "edit", section: "studio" },
+  { href: ROUTES.hub, label: copy.nav.hub, icon: "home", section: "main" },
+  { href: ROUTES.assets, label: copy.nav.knowledge, icon: "book", section: "main" },
+  { href: ROUTES.jobs, label: copy.nav.jobs, icon: "briefcase", section: "main" },
+  { href: ROUTES.tracker, label: copy.nav.tracker, icon: "tracker", section: "main" },
+  { href: ROUTES.insights, label: copy.nav.insights, icon: "chart", section: "main" },
+  { href: ROUTES.studioPrepare, label: copy.nav.studio, icon: "edit", section: "studio" },
 ];

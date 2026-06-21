@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { NAV_ITEMS, ROUTES } from "@/lib/navigation";
+import { copy } from "@/lib/copy";
 
 const ICONS = {
   home: Home,
@@ -69,7 +70,7 @@ export default function NavRail({ collapsed: collapsedProp }: { collapsed?: bool
   return (
     <nav
       className={clsx(
-        "flex flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-container)] shrink-0 overflow-x-hidden",
+        "flex flex-col border-r border-[var(--border-faint)] bg-[var(--surface-container)] shrink-0 overflow-x-hidden",
         collapsed ? "w-[var(--rail-width-collapsed)]" : "w-[var(--rail-width)]"
       )}
       aria-label="主导航"
@@ -84,8 +85,8 @@ export default function NavRail({ collapsed: collapsedProp }: { collapsed?: bool
               href={item.href}
               title={collapsed ? item.label : undefined}
               className={clsx(
-                "flex items-center rounded-lg py-2.5 text-sm transition-colors whitespace-nowrap",
-                collapsed ? "justify-center px-2" : "gap-2.5 px-3",
+                "flex items-center rounded-[var(--radius-sm)] py-2.5 text-sm transition-colors whitespace-nowrap",
+                collapsed ? "justify-center px-2" : "gap-3 px-3",
                 active
                   ? "bg-[var(--primary-muted)] text-[var(--primary)] font-medium"
                   : "text-[var(--text-secondary)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]"
@@ -103,10 +104,10 @@ export default function NavRail({ collapsed: collapsedProp }: { collapsed?: bool
             href={studioItem.href}
             title={collapsed ? studioItem.label : undefined}
             className={clsx(
-              "flex items-center rounded-lg py-2.5 text-sm font-medium transition-colors whitespace-nowrap",
-              collapsed ? "justify-center px-2" : "gap-2.5 px-3",
+              "flex items-center rounded-[var(--radius-full)] py-2.5 text-sm font-medium transition-colors whitespace-nowrap",
+              collapsed ? "justify-center px-2" : "gap-3 px-3 mx-1",
               isStudioActive()
-                ? "bg-[var(--primary)] text-white"
+                ? "bg-[var(--primary)] text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-base)]"
             )}
           >
@@ -123,11 +124,11 @@ export default function NavRail({ collapsed: collapsedProp }: { collapsed?: bool
             "flex w-full items-center rounded-lg py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)] transition-colors",
             collapsed ? "justify-center px-2" : "gap-2 px-3"
           )}
-          aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
-          title={collapsed ? "展开侧边栏" : "收起侧边栏"}
+          aria-label={collapsed ? copy.nav.expandRail : copy.nav.collapseRail}
+          title={collapsed ? copy.nav.expandRail : copy.nav.collapseRail}
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          {!collapsed && <span>收起侧栏</span>}
+          {!collapsed && <span>{copy.nav.collapseRail}</span>}
         </button>
       </div>
     </nav>

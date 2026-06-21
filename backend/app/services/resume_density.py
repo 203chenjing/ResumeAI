@@ -18,8 +18,8 @@ def assess_density(md: str) -> dict:
             "char_count": chars,
             "status": "sparse",
             "message": (
-                f"当前约 {chars} 字，低于单页饱满下限（建议 ≥{IDEAL_MIN} 字）。"
-                "接受过多删减后底部易空白，请优先补充经历细节或拒绝 delete 类建议。"
+                f"目前约 {chars} 字，内容偏少，一页底部容易留白。"
+                "建议补充经历细节，或谨慎采纳删减类建议。"
             ),
         }
     if chars > DENSE_THRESHOLD:
@@ -27,20 +27,20 @@ def assess_density(md: str) -> dict:
             "char_count": chars,
             "status": "dense",
             "message": (
-                f"当前约 {chars} 字，超过单页安全上限（建议 ≤{IDEAL_MAX} 字）。"
-                "继续扩写可能变成 2 页，请合并或压缩低优先级内容。"
+                f"目前约 {chars} 字，偏多，可能挤不下单页。"
+                "建议合并或压缩优先级较低的内容。"
             ),
         }
     if chars < IDEAL_MIN:
         return {
             "char_count": chars,
             "status": "light",
-            "message": f"当前约 {chars} 字，略偏少，定稿前建议补充 1–2 处 JD 相关细节。",
+            "message": f"目前约 {chars} 字，略少。定稿前可再补 1–2 处与岗位相关的细节。",
         }
     return {
         "char_count": chars,
         "status": "ok",
-        "message": f"当前约 {chars} 字，密度适合 A4 单页。",
+        "message": f"目前约 {chars} 字，长度适合一页 PDF。",
     }
 
 
