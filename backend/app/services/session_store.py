@@ -78,6 +78,48 @@ class SessionStore:
             self._persist(session_id, sess)
             return sess
 
+    def list_recent(self, limit: int = 10) -> list[dict]:
+        """返回最近会话存档摘要，供首页恢复工作区。"""
+        safe_limit = max(1, min(limit, 50))
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute(
+                """
+                SELECT session_id, data, last_activity
+                FROM sessions
+                ORDER BY last_activity DESC
+                LIMIT ?
+                """,
+                (safe_limit,),
+            ).fetchall()
+
+        out: list[dict] = []
+        for sid, raw, last_activity in rows:
+            try:
+                sess = Session.model_validate(json.loads(raw))
+            except Exception:
+                continue
+            company = sess.jd_analysis.company if sess.jd_analysis else ""
+            role = sess.jd_analysis.role if sess.jd_analysis else ""
+            pending = len([s for s in sess.suggestions if s.status in ("pending", "adjusted")])
+            title_parts = [p for p in (company, role) if p]
+            title = " · ".join(title_parts) or _fallback_session_title(sess)
+            out.append(
+                {
+                    "session_id": sid,
+                    "title": title,
+                    "company": company,
+                    "role": role,
+                    "status": sess.status,
+                    "finalize_status": sess.finalize_status,
+                    "pending_suggestions": pending,
+                    "suggestions_total": len(sess.suggestions),
+                    "has_finalized": bool(sess.finalized_resume_md),
+                    "updated_at": last_activity,
+                    "created_at": sess.created_at.isoformat(),
+                }
+            )
+        return out
+
     def update(self, session: Session):
         session.last_activity = datetime.now()
         with self._lock:
@@ -113,6 +155,14 @@ class SessionStore:
                         "DELETE FROM sessions WHERE session_id = ?",
                         (sid,),
                     )
+
+
+def _fallback_session_title(sess: Session) -> str:
+    if sess.parsed_resume and sess.parsed_resume.header.name:
+        return f"{sess.parsed_resume.header.name} 的简历工作区"
+    if sess.current_resume_md:
+        return "未命名简历工作区"
+    return "空白工作区"
 
 
 store = SessionStore()

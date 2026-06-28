@@ -5,11 +5,13 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "jobs.db"
 JSON_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "job_feed"
 MAX_FEED_SIZE = 2000
 STALE_MISS_THRESHOLD = 2
+HIDDEN_JOB_DOMAINS = ("yingjiesheng.com",)
 
 _migrated_clients: set[str] = set()
 
@@ -145,6 +147,25 @@ def _row_to_job(row: sqlite3.Row) -> dict:
     }
 
 
+def _is_hidden_job(job: dict) -> bool:
+    url = job.get("jd_url") or ""
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        host = ""
+    if any(domain in host for domain in HIDDEN_JOB_DOMAINS):
+        return True
+    blob = " ".join(
+        str(x or "")
+        for x in (
+            job.get("channel"),
+            job.get("source_site"),
+            *(job.get("tags") or []),
+        )
+    )
+    return any(domain.replace(".com", "") in blob for domain in HIDDEN_JOB_DOMAINS)
+
+
 def _upsert_one(conn: sqlite3.Connection, client_id: str, job: dict, *, now: str) -> None:
     conn.execute(
         """
@@ -240,6 +261,7 @@ def list_jobs(
         conn.close()
 
     jobs = [_row_to_job(r) for r in rows]
+    jobs = [j for j in jobs if not _is_hidden_job(j)]
     if work_city:
         jobs = [
             j

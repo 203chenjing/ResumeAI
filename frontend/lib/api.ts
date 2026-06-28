@@ -1,5 +1,5 @@
 // API 请求封装
-import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
+import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, CrawlRun, SessionArchive, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
 import { getClientId } from "./userMemory";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -323,6 +323,10 @@ export const api = {
     return request<ApiResponse<Record<string, unknown>>>(`/api/session/${session_id}`);
   },
 
+  getRecentSessions(limit = 8) {
+    return request<ApiResponse<{ sessions: SessionArchive[] }>>(`/api/sessions/recent?limit=${limit}`);
+  },
+
   getApplications(client_id: string) {
     return request<
       ApiResponse<{
@@ -496,6 +500,12 @@ export const api = {
 
   getCrawlHealth(client_id: string) {
     return request<ApiResponse<CrawlHealth>>(`/api/jobs/crawl-health/${client_id}`);
+  },
+
+  getCrawlHistory(client_id: string, limit = 5) {
+    return request<ApiResponse<{ history: CrawlRun[] }>>(
+      `/api/jobs/crawl-history/${client_id}?limit=${limit}`
+    );
   },
 
   rerankJobs(client_id: string, top_k = 20) {

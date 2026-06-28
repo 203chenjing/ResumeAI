@@ -13,3 +13,8 @@ async def get_session(session_id: str):
     if not sess:
         raise HTTPException(404, "会话不存在或已过期")
     return ApiResponse(success=True, data=sess.model_dump(mode="json"))
+
+
+@router.get("/sessions/recent", response_model=ApiResponse)
+async def list_recent_sessions(limit: int = 10):
+    return ApiResponse(success=True, data={"sessions": store.list_recent(limit)})

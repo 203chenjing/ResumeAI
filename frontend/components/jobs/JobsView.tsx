@@ -31,7 +31,7 @@ import {
 import JobDigestPanel from "@/components/jobs/JobDigestPanel";
 import JobPreferencesPanel from "@/components/jobs/JobPreferencesPanel";
 import CareerCopilotPanel from "@/components/jobs/CareerCopilotPanel";
-import type { CrawlHealth } from "@/lib/types";
+import type { CrawlHealth, CrawlRun } from "@/lib/types";
 import { copy } from "@/lib/copy";
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -69,6 +69,7 @@ export default function JobsView() {
   const [digest, setDigest] = useState<JobDigest | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [crawlHealth, setCrawlHealth] = useState<CrawlHealth | null>(null);
+  const [crawlHistory, setCrawlHistory] = useState<CrawlRun[]>([]);
 
   const crawlUiStatus = useCrawlStore((s) => s.status);
   const lastResult = useCrawlStore((s) => s.lastResult);
@@ -107,6 +108,9 @@ export default function JobsView() {
     api.getCrawlHealth(getClientId()).then((res) => {
       if (res.success && res.data) setCrawlHealth(res.data);
     }).catch(() => {});
+    api.getCrawlHistory(getClientId()).then((res) => {
+      if (res.success && res.data) setCrawlHistory(res.data.history);
+    }).catch(() => {});
     api.dedupeJobFeed(getClientId()).then((res) => {
       if (res.success && res.data && res.data.before !== res.data.after) load();
     }).catch(() => {});
@@ -141,6 +145,9 @@ export default function JobsView() {
       setCrawlReport(`刷新完成：新增 ${data.new_count} 条，当前共 ${data.total} 条${qualityLine}`);
     }
     if (data.crawl_health) setCrawlHealth(data.crawl_health);
+    api.getCrawlHistory(getClientId()).then((res) => {
+      if (res.success && res.data) setCrawlHistory(res.data.history);
+    }).catch(() => {});
   }
 
   async function regenerateDigest() {
@@ -296,6 +303,7 @@ export default function JobsView() {
       {meta && (
         <div className="mb-4 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
           <span className="px-2 py-1 surface-card text-xs">共 {meta.total} 条</span>
+          <span className="px-2 py-1 surface-card text-xs">已保存到本地岗位库 SQLite</span>
           {meta.last_crawled_at && (
             <span className="px-2 py-1 surface-card text-xs">
               最近抓取 {formatDateShort(meta.last_crawled_at)}
@@ -321,6 +329,40 @@ export default function JobsView() {
               爬虫 {crawlHealth.summary === "healthy" ? "正常" : crawlHealth.summary === "degraded" ? "异常" : "部分可用"}
             </span>
           )}
+        </div>
+      )}
+
+      {crawlHistory.length > 0 && (
+        <div className="mb-4 surface-card p-3">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="section-label">爬虫数据存档</p>
+            <span className="text-xs text-[var(--text-disabled)]">保留最近 {crawlHistory.length} 次运行</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {crawlHistory.slice(0, 5).map((run) => {
+              const providers = Object.entries(run.providers || {});
+              const ok = run.summary === "healthy";
+              return (
+                <div
+                  key={run.run_at}
+                  className="min-w-[220px] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3 bg-[var(--surface-container)]"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={ok ? "text-[var(--semantic-success)] text-xs" : "text-[var(--semantic-warning)] text-xs"}>
+                      {ok ? "抓取正常" : "部分异常"}
+                    </span>
+                    <span className="text-[11px] text-[var(--text-disabled)]">{formatDateShort(run.run_at)}</span>
+                  </div>
+                  <p className="text-sm text-[var(--text-primary)] mt-2">
+                    新增 {run.new_count} 条 / 当前 {run.total} 条
+                  </p>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-1">
+                    {providers.map(([name, p]) => `${name} ${p.fetched ?? 0}`).join(" · ")}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -444,6 +486,8 @@ export default function JobsView() {
                 {filtered.map((job) => {
                   const cities = workCities(job);
                   const positions = positionTitles(job);
+                  const companyText = displayCompany(job);
+                  const roleText = displayRole(job);
                   return (
                     <tr
                       key={job.id}
@@ -468,7 +512,19 @@ export default function JobsView() {
                               {priorityMap.get(job.id)}
                             </span>
                           )}
-                          {displayCompany(job)}
+                          {job.jd_url ? (
+                            <a
+                              href={job.jd_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-[var(--primary)] hover:underline"
+                              title="打开原始岗位链接"
+                            >
+                              {companyText}
+                            </a>
+                          ) : (
+                            companyText
+                          )}
                           {job.legitimacy === "trusted" && (
                             <span
                               title="来自官方招聘系统 / 社区维护校招库，真实性高"
@@ -486,7 +542,7 @@ export default function JobsView() {
                             </span>
                           )}
                         </div>
-                        {displayCompany(job) === "—" && job.source === "university_html" && (
+                        {companyText === "—" && job.source === "university_html" && (
                           <div className="text-[11px] text-[var(--text-disabled)] mt-0.5">用人单位待解析</div>
                         )}
                         {facetTags(job).slice(0, 2).map((t) => (
@@ -499,7 +555,21 @@ export default function JobsView() {
                         ))}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <div className="text-[var(--primary)] font-medium">{displayRole(job)}</div>
+                        <div className="text-[var(--primary)] font-medium">
+                          {job.jd_url ? (
+                            <a
+                              href={job.jd_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline"
+                              title="打开原始岗位链接"
+                            >
+                              {roleText}
+                            </a>
+                          ) : (
+                            roleText
+                          )}
+                        </div>
                         {positions && (
                           <div className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2" title={positions}>
                             {positions}
@@ -532,7 +602,7 @@ export default function JobsView() {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
                             >
-                              <ExternalLink size={12} /> 官方
+                              <ExternalLink size={12} /> 原文
                             </a>
                           )}
                           {job.referral_code && (

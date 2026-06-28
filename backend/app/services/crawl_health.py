@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 HEALTH_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "crawl_health.json"
+MAX_HISTORY = 20
 
 
 def _load_all() -> dict:
@@ -45,6 +46,19 @@ def record_crawl_run(client_id: str, *, report: list[dict], new_count: int, tota
         "providers": providers,
         "summary": _summarize(providers),
     }
+    prev = all_data.get(client_id) or {}
+    history = list(prev.get("history") or [])
+    history.insert(
+        0,
+        {
+            "run_at": now,
+            "new_count": new_count,
+            "total": total,
+            "summary": entry["summary"],
+            "providers": providers,
+        },
+    )
+    entry["history"] = history[:MAX_HISTORY]
     all_data[client_id] = entry
     _save_all(all_data)
     return entry
@@ -53,6 +67,22 @@ def record_crawl_run(client_id: str, *, report: list[dict], new_count: int, tota
 def get_crawl_health(client_id: str = "default") -> dict:
     all_data = _load_all()
     return all_data.get(client_id) or {"summary": "unknown", "providers": {}, "last_run_at": ""}
+
+
+def get_crawl_history(client_id: str = "default", limit: int = 10) -> list[dict]:
+    data = get_crawl_health(client_id)
+    history = list(data.get("history") or [])
+    if not history and data.get("last_run_at"):
+        history = [
+            {
+                "run_at": data.get("last_run_at"),
+                "new_count": data.get("new_count", 0),
+                "total": data.get("total", 0),
+                "summary": data.get("summary", "unknown"),
+                "providers": data.get("providers", {}),
+            }
+        ]
+    return history[: max(1, min(limit, MAX_HISTORY))]
 
 
 def _status_color(status: str) -> str:

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from app.models.schemas import ApiResponse
 from app.crawlers.crawl_config import load_crawl_config, reload_crawl_config
 from app.crawlers.wechat_article import WechatArticleProvider
-from app.services.crawl_health import get_crawl_health, record_crawl_run
+from app.services.crawl_health import get_crawl_health, get_crawl_history, record_crawl_run
 from app.services.crawl_task import get_crawl_state, start_crawl
 from app.services.job_digest import build_job_digest, load_digest
 from app.services.job_feed import add_job, crawl_all, dedupe_feed, feed_meta, list_jobs
@@ -228,6 +228,11 @@ async def ingest_wechat(body: IngestWechatBody):
 @router.get("/jobs/crawl-health/{client_id}", response_model=ApiResponse)
 async def get_jobs_crawl_health(client_id: str):
     return ApiResponse(success=True, data=get_crawl_health(client_id))
+
+
+@router.get("/jobs/crawl-history/{client_id}", response_model=ApiResponse)
+async def get_jobs_crawl_history(client_id: str, limit: int = 10):
+    return ApiResponse(success=True, data={"history": get_crawl_history(client_id, limit)})
 
 
 @router.post("/jobs/rerank", response_model=ApiResponse)

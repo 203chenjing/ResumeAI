@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Limits
     max_file_size_mb: int = 10
-    session_timeout_minutes: int = 60 * 24 * 7  # 7 天，秋招跨天改简历
+    session_timeout_minutes: int = 60 * 24 * 90  # 90 天，保留多岗位定制存档
     llm_max_tokens: int = 4096
     llm_temperature: float = 0.3
     llm_timeout_seconds: int = 60

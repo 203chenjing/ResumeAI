@@ -336,13 +336,14 @@ def parse_nowcoder_schedule(page, source: dict) -> list[JobPosting]:
     schedule_url = page.url
 
     entries: list[tuple[str, str]] = []
-    for sel in ("a[href*='enterprise']", "a[href*='jump?type=ad']"):
+    for sel in ("a[href*='enterprise']", "a[href*='recruitmentSchedule']", "a[href*='jump?type=ad']"):
         for a in page.query_selector_all(sel):
             href = a.get_attribute("href") or ""
             text = " ".join(a.inner_text().split())
             if len(text) < 8 or href in seen:
                 continue
-            if not any(k in text for k in ("校招", "实习", "提前批", "补录", "届")):
+            is_enterprise = "/enterprise/" in href or "nowcoder.com/enterprise/" in href
+            if not is_enterprise and not any(k in text for k in ("校招", "实习", "提前批", "补录", "届")):
                 continue
             seen.add(href)
             entries.append((href, text))

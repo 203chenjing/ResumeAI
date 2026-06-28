@@ -262,6 +262,28 @@ export interface CrawlHealth {
   >;
 }
 
+export interface CrawlRun {
+  run_at: string;
+  new_count: number;
+  total: number;
+  summary: string;
+  providers: Record<string, { status: string; fetched?: number; duration_ms?: number; error?: string; health?: string }>;
+}
+
+export interface SessionArchive {
+  session_id: string;
+  title: string;
+  company: string;
+  role: string;
+  status: string;
+  finalize_status: "draft" | "finalized" | "stale";
+  pending_suggestions: number;
+  suggestions_total: number;
+  has_finalized: boolean;
+  updated_at: string;
+  created_at: string;
+}
+
 export interface InterviewPrepPack {
   company: string;
   role: string;
