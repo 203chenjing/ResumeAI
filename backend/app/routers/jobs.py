@@ -6,6 +6,7 @@ from app.models.schemas import ApiResponse
 from app.crawlers.crawl_config import load_crawl_config, reload_crawl_config
 from app.crawlers.wechat_article import WechatArticleProvider
 from app.services.crawl_health import get_crawl_health, record_crawl_run
+from app.services.crawl_task import get_crawl_state, start_crawl
 from app.services.job_digest import build_job_digest, load_digest
 from app.services.job_feed import add_job, crawl_all, dedupe_feed, feed_meta, list_jobs
 from app.services.job_preferences import load_job_preferences, save_job_preferences
@@ -114,6 +115,25 @@ async def post_job_digest(body: DigestBody):
 
 @router.post("/jobs/crawl", response_model=ApiResponse)
 async def post_crawl(body: CrawlBody):
+    """启动后台爬虫，立即返回，可与改稿并行。"""
+    state = await start_crawl(body.client_id, body.providers)
+    data = state.to_api()
+    if state.status == "running" and not state.result:
+        data["message"] = "爬虫已在后台运行，可继续改简历"
+    return ApiResponse(success=True, data=data)
+
+
+@router.get("/jobs/crawl-status/{client_id}", response_model=ApiResponse)
+async def get_crawl_status(client_id: str):
+    state = await get_crawl_state()
+    if state.status == "idle" or (state.status == "running" and state.client_id != client_id):
+        return ApiResponse(success=True, data={"status": "idle"})
+    return ApiResponse(success=True, data=state.to_api())
+
+
+@router.post("/jobs/crawl-sync", response_model=ApiResponse)
+async def post_crawl_sync(body: CrawlBody):
+    """同步爬虫（测试/脚本用），会阻塞至完成。"""
     result = await crawl_all(body.client_id, body.providers)
     health = record_crawl_run(
         body.client_id,

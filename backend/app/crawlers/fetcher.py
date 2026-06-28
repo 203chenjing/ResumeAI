@@ -113,7 +113,7 @@ class CrawlFetcher:
             await asyncio.sleep(wait)
         self._last_fetch = asyncio.get_event_loop().time()
 
-    def _allowed(self, url: str) -> bool:
+    async def _allowed(self, url: str) -> bool:
         if not self.respect_robots or self._bypass_robots(url):
             return True
         parsed = urlparse(url)
@@ -122,7 +122,7 @@ class CrawlFetcher:
             rp = RobotFileParser()
             rp.set_url(f"{base}/robots.txt")
             try:
-                rp.read()
+                await asyncio.to_thread(rp.read)
             except Exception:
                 pass
             self._robots[base] = rp
@@ -132,7 +132,7 @@ class CrawlFetcher:
             return True
 
     async def fetch_http(self, url: str, timeout: float = 20.0) -> PageContent:
-        if not self._allowed(url):
+        if not await self._allowed(url):
             raise PermissionError(f"robots.txt disallows: {url}")
         await self._throttle()
         async with httpx.AsyncClient(
@@ -152,7 +152,7 @@ class CrawlFetcher:
         timeout: float = 60.0,
         wait_until: str = "networkidle",
     ) -> PageContent:
-        if not self._allowed(url):
+        if not await self._allowed(url):
             raise PermissionError(f"robots.txt disallows: {url}")
         await self._throttle()
         return await asyncio.to_thread(
@@ -182,7 +182,7 @@ class CrawlFetcher:
         try:
             if not parser_mode:
                 raise ValueError("parser_mode required for subprocess playwright parse")
-            if not self._allowed(url):
+            if not await self._allowed(url):
                 raise PermissionError(f"robots.txt disallows: {url}")
             await self._throttle()
             source = args[0] if args else {}

@@ -417,6 +417,9 @@ export const api = {
   crawlJobs(client_id: string, providers?: string[]) {
     return request<
       ApiResponse<{
+        status?: string;
+        message?: string;
+        progress?: string;
         new_count: number;
         total: number;
         report: Array<{
@@ -436,11 +439,31 @@ export const api = {
         };
         jobs: JobPosting[];
         digest?: JobDigest;
+        crawl_health?: CrawlHealth;
+        error?: string;
       }>
     >("/api/jobs/crawl", {
       method: "POST",
       body: JSON.stringify({ client_id, providers: providers ?? null }),
     });
+  },
+
+  getCrawlStatus(client_id: string) {
+    return request<
+      ApiResponse<{
+        status: string;
+        message?: string;
+        progress?: string;
+        new_count?: number;
+        total?: number;
+        report?: Array<Record<string, unknown>>;
+        quality?: Record<string, number>;
+        jobs?: JobPosting[];
+        digest?: JobDigest;
+        crawl_health?: CrawlHealth;
+        error?: string;
+      }>
+    >(`/api/jobs/crawl-status/${encodeURIComponent(client_id)}`);
   },
 
   dedupeJobFeed(client_id: string) {

@@ -105,7 +105,60 @@ export default function JobsView() {
     api.dedupeJobFeed(getClientId()).then((res) => {
       if (res.success && res.data && res.data.before !== res.data.after) load();
     }).catch(() => {});
+    // 恢复进行中的后台爬虫轮询（切换页面后仍可继续）
+    api.getCrawlStatus(getClientId()).then(async (res) => {
+      if (res.success && res.data?.status === "running") {
+        setCrawling(true);
+        setDigestLoading(true);
+        if (res.data.progress) setCrawlReport(res.data.progress);
+        try {
+          await pollCrawlUntilDone();
+        } catch (e) {
+          setCrawlReport((e as Error).message);
+        } finally {
+          setCrawling(false);
+          setDigestLoading(false);
+        }
+      }
+    }).catch(() => {});
   }, []);
+
+  function applyCrawlResult(data: {
+    new_count?: number;
+    total?: number;
+    quality?: { validated_ok?: number };
+    jobs?: JobPosting[];
+    digest?: JobDigest;
+    crawl_health?: CrawlHealth;
+  }) {
+    if (data.jobs) setJobs(data.jobs);
+    if (data.digest) setDigest(data.digest);
+    const q = data.quality;
+    const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
+    if (data.new_count != null && data.total != null) {
+      setCrawlReport(`刷新完成：新增 ${data.new_count} 条，当前共 ${data.total} 条${qualityLine}`);
+    }
+    if (data.crawl_health) setCrawlHealth(data.crawl_health);
+  }
+
+  async function pollCrawlUntilDone() {
+    const clientId = getClientId();
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await api.getCrawlStatus(clientId);
+      const data = res.data;
+      if (!res.success || !data) continue;
+      if (data.progress) setCrawlReport(data.progress);
+      if (data.status === "running") continue;
+      if (data.status === "error") throw new Error(data.error || "抓取失败");
+      if (data.status === "done") {
+        applyCrawlResult(data);
+        await load();
+        return;
+      }
+      if (data.status === "idle") return;
+    }
+  }
 
   async function regenerateDigest() {
     setDigestLoading(true);
@@ -119,22 +172,28 @@ export default function JobsView() {
 
   async function crawl(providers: string[]) {
     setCrawling(true);
-    setCrawlReport("");
+    setCrawlReport("正在启动后台抓取…");
     setDigestLoading(true);
     try {
       const res = await api.crawlJobs(getClientId(), providers);
-      if (res.success && res.data) {
-        setJobs(res.data.jobs);
-        if (res.data.digest) setDigest(res.data.digest);
-        const q = res.data.quality;
-        const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
-        const label = providers.includes("university_html") ? "全量" : "快速";
-        setCrawlReport(`${label}刷新：新增 ${res.data.new_count} 条，当前共 ${res.data.total} 条${qualityLine}`);
-        if ((res.data as { crawl_health?: CrawlHealth }).crawl_health) {
-          setCrawlHealth((res.data as { crawl_health?: CrawlHealth }).crawl_health!);
-        }
-        await load();
+      if (!res.success || !res.data) return;
+      const data = res.data;
+      if (data.status === "running") {
+        setCrawlReport(data.message || data.progress || "后台抓取中，可先去改简历");
+        await pollCrawlUntilDone();
+        return;
       }
+      if (data.status === "error") throw new Error(data.error || "抓取失败");
+      applyCrawlResult(data);
+      const label = providers.includes("university_html") ? "全量" : "快速";
+      if (data.new_count != null && data.total != null) {
+        const q = data.quality;
+        const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
+        setCrawlReport(`${label}刷新：新增 ${data.new_count} 条，当前共 ${data.total} 条${qualityLine}`);
+      }
+      await load();
+    } catch (e) {
+      setCrawlReport((e as Error).message);
     } finally {
       setCrawling(false);
       setDigestLoading(false);
@@ -223,7 +282,7 @@ export default function JobsView() {
             type="button"
             onClick={() => crawl(["job_aggregator", "company_campus"])}
             disabled={crawling}
-            title="牛客日程 + 企业官网，约 3–5 分钟"
+            title="牛客日程 + 企业官网，后台运行，可同时进行改稿"
             className="inline-flex items-center gap-2 px-4 py-2 btn-primary"
           >
             {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -233,7 +292,7 @@ export default function JobsView() {
             type="button"
             onClick={() => crawl(["job_aggregator", "company_campus", "university_html"])}
             disabled={crawling}
-            title="含高校就业网，约 10–15 分钟"
+            title="含高校就业网，后台运行，可同时进行改稿"
             className="inline-flex items-center gap-2 px-4 py-2 btn-secondary"
           >
             {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}

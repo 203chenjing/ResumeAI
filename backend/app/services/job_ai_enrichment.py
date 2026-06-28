@@ -9,6 +9,7 @@ from pathlib import Path
 
 from app.config import settings
 from app.services.llm_client import client
+from app.services.llm_priority import wait_for_studio_idle
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,7 @@ async def enrich_jobs(jobs: list[dict]) -> tuple[list[dict], dict]:
     by_id = {j.get("id"): dict(j) for j in jobs if j.get("id")}
     extract_candidates = [j for j in jobs if needs_ai_enrichment(j)]
     for batch in _chunk(extract_candidates, EXTRACT_BATCH_SIZE):
+        await wait_for_studio_idle()
         items = await _extract_batch(batch)
         stats["extract_batches"] += 1
         for item in items:
@@ -233,6 +235,7 @@ async def enrich_jobs(jobs: list[dict]) -> tuple[list[dict], dict]:
 
     tag_candidates = [by_id[j["id"]] for j in jobs if j.get("id") in by_id and needs_ai_tags(by_id[j["id"]])]
     for batch in _chunk(tag_candidates, TAG_BATCH_SIZE):
+        await wait_for_studio_idle()
         items = await _tag_batch(batch)
         stats["tag_batches"] += 1
         for item in items:

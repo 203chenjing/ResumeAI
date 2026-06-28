@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.services.crawl_scheduler import start_crawl_scheduler, stop_crawl_scheduler
+from app.services.crawl_task import STUDIO_PATH_PREFIXES
+from app.services.llm_priority import studio_enter, studio_leave
 from app.routers import (
     agent,
     analysis,
@@ -61,6 +63,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def studio_priority_middleware(request, call_next):
+    """改稿 API 进行中时，爬虫 enrichment 主动让路。"""
+    path = request.url.path
+    if any(path.startswith(p) for p in STUDIO_PATH_PREFIXES):
+        studio_enter()
+        try:
+            return await call_next(request)
+        finally:
+            studio_leave()
+    return await call_next(request)
+
 
 app.include_router(resume.router)
 app.include_router(jd.router)
