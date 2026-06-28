@@ -1,0 +1,57 @@
+---
+description: ResumeAI 前端须遵循 Google 产品思维（Material IA、渐进披露、克制反馈）
+globs: ResumeAI/frontend/**
+alwaysApply: false
+---
+
+# ResumeAI 前端 · Google 产品思维
+
+在 `ResumeAI/frontend/` 内做 UI、交互、文案时，默认按 **Google Material 信息架构** 与 **单一主路径** 原则，参考 Gmail / Drive / Google Docs 的克制体验，而非堆砌功能或强提醒。
+
+## 核心原则
+
+1. **单一主路径** — 每屏一个主要任务；次要能力收进菜单、侧栏或「更多」
+2. **渐进披露** — 默认只展示当前步骤必需信息；高级选项按需展开
+3. **人决策、系统提案** — AI 给建议，用户确认；避免模态阻断主流程
+4. **克制反馈** — 状态用细线进度、小字 chip、Toast；不用大面积色块_alert 打断改稿
+5. **以「你」为中心** — 文案说清下一步与结果，避免技术词（见 `lib/copy.ts`）
+
+## 视觉与布局
+
+| 要素 | 约定 |
+|------|------|
+| 色彩 | 使用 `globals.css` token（`--primary` `#1a73e8`、`--text-secondary` 等），不随意新增高饱和色 |
+| 圆角 | `--radius-sm/md/full`，按钮 pill 用于步骤导航 |
+| 阴影 | 仅 elevated 卡片用 `--shadow-sm/md`，避免过重 |
+| 字体 | 正文 14px，标题层级清晰；辅助信息 `text-xs` + `text-secondary` |
+| 间距 | 区块 `mb-4~6`，卡片内 `p-4`；保持留白，一页不过载 |
+
+## 状态与后台任务
+
+- **长任务**（爬虫、导出）：后台运行 + 顶栏细线进度 + 右侧小字状态（见 `CrawlStatusIndicator`）
+- **完成**：短暂成功提示（约 4s）后自动收起，可点链接回到相关页
+- **错误**：小字警告 + 可关闭，不用 blocking dialog（除非数据丢失）
+- **跨页**：全局 `CrawlStatusPoller` + store，用户切到改稿页仍能看到「正在更新岗位」
+
+## 文案
+
+- 所有用户可见字符串进 `lib/copy.ts`，组件内不写死中文
+- 句式短：「正在更新岗位」优于「爬虫任务执行中」
+- 按钮用动词：「一键改稿」「浏览岗位」
+
+## 组件约定
+
+- 新页面套 `AppShell`；改稿用 `studio` 模式 + `StudioHeader`
+- 列表优先 scannable（标题 + 一行摘要 + 次要 meta）
+- 加载：局部 `Loader2` + 占位，避免全屏遮罩（除非提交定稿等关键闸门）
+
+## 反模式（避免）
+
+- 全屏 modal 仅为了提示「后台任务进行中」
+- 亮色 `alert-success` 横幅常驻
+- 同时用 Toast + Banner + Modal 重复同一消息
+- 改稿页出现岗位爬虫的复杂控制面板
+
+## 与 Git 工作流
+
+前端改动完成后按 `resumeai-git-workflow.mdc` 提交；勿提交 `.env.local`。

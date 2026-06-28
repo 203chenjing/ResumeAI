@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import { ROUTES } from "@/lib/navigation";
 import { useAppStore } from "@/stores/useAppStore";
+import { useCrawlStore } from "@/stores/useCrawlStore";
 import type { JobDigest, JobFeedMeta, JobPosting } from "@/lib/types";
 import {
   displayCompany,
@@ -69,6 +70,11 @@ export default function JobsView() {
   const [digestLoading, setDigestLoading] = useState(false);
   const [crawlHealth, setCrawlHealth] = useState<CrawlHealth | null>(null);
 
+  const crawlUiStatus = useCrawlStore((s) => s.status);
+  const lastResult = useCrawlStore((s) => s.lastResult);
+  const setCrawlRunning = useCrawlStore((s) => s.setRunning);
+  const consumeLastResult = useCrawlStore((s) => s.consumeLastResult);
+
   useEffect(() => {
     const q = searchParams.get("filter");
     if (q) setFilter(q);
@@ -101,27 +107,23 @@ export default function JobsView() {
     api.getCrawlHealth(getClientId()).then((res) => {
       if (res.success && res.data) setCrawlHealth(res.data);
     }).catch(() => {});
-    // 清理历史脏数据（高校资讯误当岗位）
     api.dedupeJobFeed(getClientId()).then((res) => {
       if (res.success && res.data && res.data.before !== res.data.after) load();
     }).catch(() => {});
-    // 恢复进行中的后台爬虫轮询（切换页面后仍可继续）
-    api.getCrawlStatus(getClientId()).then(async (res) => {
-      if (res.success && res.data?.status === "running") {
-        setCrawling(true);
-        setDigestLoading(true);
-        if (res.data.progress) setCrawlReport(res.data.progress);
-        try {
-          await pollCrawlUntilDone();
-        } catch (e) {
-          setCrawlReport((e as Error).message);
-        } finally {
-          setCrawling(false);
-          setDigestLoading(false);
-        }
-      }
-    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!lastResult) return;
+    applyCrawlResult(lastResult);
+    consumeLastResult();
+    void load();
+  }, [lastResult, consumeLastResult]);
+
+  useEffect(() => {
+    if (crawlUiStatus === "running") {
+      setCrawlReport(copy.crawl.backgroundHint);
+    }
+  }, [crawlUiStatus]);
 
   function applyCrawlResult(data: {
     new_count?: number;
@@ -141,25 +143,6 @@ export default function JobsView() {
     if (data.crawl_health) setCrawlHealth(data.crawl_health);
   }
 
-  async function pollCrawlUntilDone() {
-    const clientId = getClientId();
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const res = await api.getCrawlStatus(clientId);
-      const data = res.data;
-      if (!res.success || !data) continue;
-      if (data.progress) setCrawlReport(data.progress);
-      if (data.status === "running") continue;
-      if (data.status === "error") throw new Error(data.error || "抓取失败");
-      if (data.status === "done") {
-        applyCrawlResult(data);
-        await load();
-        return;
-      }
-      if (data.status === "idle") return;
-    }
-  }
-
   async function regenerateDigest() {
     setDigestLoading(true);
     try {
@@ -172,24 +155,25 @@ export default function JobsView() {
 
   async function crawl(providers: string[]) {
     setCrawling(true);
-    setCrawlReport("正在启动后台抓取…");
+    setCrawlReport(copy.crawl.starting);
     setDigestLoading(true);
+    setCrawlRunning(copy.crawl.starting);
     try {
       const res = await api.crawlJobs(getClientId(), providers);
       if (!res.success || !res.data) return;
       const data = res.data;
       if (data.status === "running") {
-        setCrawlReport(data.message || data.progress || "后台抓取中，可先去改简历");
-        await pollCrawlUntilDone();
+        setCrawlReport(copy.crawl.backgroundHint);
+        setCrawlRunning(data.progress || copy.crawl.running);
         return;
       }
-      if (data.status === "error") throw new Error(data.error || "抓取失败");
+      if (data.status === "error") throw new Error(data.error || copy.crawl.failed);
       applyCrawlResult(data);
       const label = providers.includes("university_html") ? "全量" : "快速";
       if (data.new_count != null && data.total != null) {
         const q = data.quality;
-        const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
-        setCrawlReport(`${label}刷新：新增 ${data.new_count} 条，当前共 ${data.total} 条${qualityLine}`);
+        const extra = q?.validated_ok != null ? copy.crawl.doneWithQuality(q.validated_ok) : "";
+        setCrawlReport(`${label}：${copy.crawl.doneWithCount(data.new_count, data.total, extra)}`);
       }
       await load();
     } catch (e) {
@@ -354,7 +338,15 @@ export default function JobsView() {
       />
 
       {crawlReport && (
-        <div className="mb-4 alert-success">{crawlReport}</div>
+        <p
+          className={
+            crawlUiStatus === "running"
+              ? "mb-3 text-sm text-[var(--text-secondary)]"
+              : "mb-3 text-sm text-[var(--semantic-success)]"
+          }
+        >
+          {crawlReport}
+        </p>
       )}
 
       <div className="mb-3 flex flex-wrap gap-2 items-center">

@@ -6,6 +6,8 @@ import NavRail from "./NavRail";
 import TopBar from "./TopBar";
 import StudioHeader from "./StudioHeader";
 import CommandPalette from "./CommandPalette";
+import CrawlStatusPoller from "./CrawlStatusPoller";
+import { CrawlStatusLine } from "./CrawlStatusIndicator";
 import { getShellMode } from "@/lib/navigation";
 import { useAppStore } from "@/stores/useAppStore";
 
@@ -35,7 +37,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (mode === "studio") {
     return (
       <div className="h-screen flex flex-col bg-[var(--surface-base)]">
+        <CrawlStatusPoller />
         <StudioHeader />
+        <CrawlStatusLine />
         <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
         <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
       </div>
@@ -44,7 +48,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-screen flex flex-col bg-[var(--surface-base)]">
+      <CrawlStatusPoller />
       <TopBar onOpenCommand={() => setCmdOpen(true)} />
+      <CrawlStatusLine />
       <div className="flex flex-1 min-h-0">
         <NavRail />
         <main className="flex-1 overflow-auto">{children}</main>

@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import clsx from "clsx";
 import { ROUTES } from "@/lib/navigation";
 import { copy } from "@/lib/copy";
+import { CrawlStatusChip } from "./CrawlStatusIndicator";
 
 const STEPS = [
   { id: 1, label: copy.nav.steps.prepare, href: ROUTES.studioPrepare },
@@ -56,9 +57,12 @@ export default function StudioHeader() {
           );
         })}
       </nav>
-      <Link href="/" className="btn-ghost text-[var(--text-secondary)]">
-        {copy.nav.exit}
-      </Link>
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <CrawlStatusChip />
+        <Link href="/" className="btn-ghost text-[var(--text-secondary)] shrink-0">
+          {copy.nav.exit}
+        </Link>
+      </div>
     </header>
   );
 }

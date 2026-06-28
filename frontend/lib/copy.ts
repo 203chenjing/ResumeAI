@@ -254,6 +254,17 @@ export const copy = {
       hideWeak: "隐藏弱匹配",
     },
   },
+  crawl: {
+    running: "正在更新岗位",
+    starting: "正在启动更新…",
+    done: "岗位列表已更新",
+    doneWithCount: (added: number, total: number, extra: string) =>
+      `新增 ${added} 条 · 共 ${total} 条${extra}`,
+    doneWithQuality: (ok: number) => `，${ok} 条可投递`,
+    failed: "岗位更新未完成",
+    dismiss: "关闭提示",
+    backgroundHint: "后台更新中，可继续改简历",
+  },
   tracker: {
     title: "投递追踪",
     jobsLink: "浏览岗位",

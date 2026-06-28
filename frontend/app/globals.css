@@ -55,6 +55,14 @@ html, body {
 .markdown-body ins { background: #e6f4ea; color: #137333; text-decoration: none; padding: 0 2px; }
 .markdown-body del { background: #fce8e6; color: #c5221f; padding: 0 2px; }
 
+@keyframes crawl-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(500%); }
+}
+.crawl-indeterminate-bar {
+  animation: crawl-indeterminate 1.6s ease-in-out infinite;
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }

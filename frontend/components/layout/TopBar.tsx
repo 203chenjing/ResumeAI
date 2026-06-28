@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { buildStudioContext } from "@/lib/navigation";
+import { CrawlStatusChip } from "./CrawlStatusIndicator";
 
 export default function TopBar({ onOpenCommand }: { onOpenCommand?: () => void }) {
   const jdAnalysis = useAppStore((s) => s.jdAnalysis);
@@ -25,7 +26,8 @@ export default function TopBar({ onOpenCommand }: { onOpenCommand?: () => void }
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <CrawlStatusChip />
         <button
           type="button"
           onClick={onOpenCommand}
