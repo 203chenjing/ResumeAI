@@ -34,7 +34,7 @@ export default function CrawlStatusPoller() {
 
   useEffect(() => {
     let active = true;
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    let timer: number | undefined;
 
     const schedule = (ms: number) => {
       if (!active) return;
