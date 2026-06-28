@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Sparkles } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { buildStudioContext } from "@/lib/navigation";
 import { CrawlStatusChip } from "./CrawlStatusIndicator";
@@ -13,7 +13,7 @@ export default function TopBar({ onOpenCommand }: { onOpenCommand?: () => void }
   return (
     <header className="h-14 border-b border-[var(--border-subtle)] bg-[var(--surface-container)] flex items-center justify-between px-4 shrink-0">
       <Link href="/" className="flex items-center gap-2 text-[var(--primary)] font-semibold">
-        <Sparkles size={18} />
+        <FileText size={18} />
         <span className="hidden sm:inline">ResumeAI</span>
       </Link>
 

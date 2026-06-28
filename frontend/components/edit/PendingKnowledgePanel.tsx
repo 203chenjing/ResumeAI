@@ -42,25 +42,27 @@ export default function PendingKnowledgePanel() {
     <div className="mx-6 mb-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm">
       <div className="flex items-center justify-between mb-2">
         <span className="font-medium text-purple-900 flex items-center gap-1">
-          <BookMarked size={14} /> 待沉淀到知识库 ({items.length})
+          <BookMarked size={14} /> 候选事实待归档 ({items.length})
         </span>
         <button
           type="button"
           onClick={mergeAll}
           className="text-xs text-purple-700 hover:underline"
         >
-          合并已确认到知识库
+          写入已确认字段
         </button>
       </div>
       <ul className="space-y-2 max-h-32 overflow-y-auto">
         {items.map((item) => (
           <li key={item.id} className="flex gap-2 items-start bg-white/80 p-2 rounded border border-purple-100">
-            <div className="flex-1 text-xs text-[var(--text-secondary)] line-clamp-2">{item.new_text}</div>
+            <div className="flex-1 text-xs text-[var(--text-secondary)] line-clamp-2">
+              {(item.facts || []).map((f) => `${f.field}：${f.value}`).join("；") || item.new_text}
+            </div>
             <button
               type="button"
-              onClick={() => resolve(item.id, "confirm")}
-              className="p-1 text-green-600 hover:bg-green-50 rounded"
-              title="确认沉淀"
+              disabled
+              className="p-1 text-green-600 rounded opacity-40"
+              title="请到知识库待核对工作台选择归属经历后确认"
             >
               <Check size={14} />
             </button>

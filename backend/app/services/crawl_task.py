@@ -82,10 +82,13 @@ async def _run_crawl(client_id: str, providers: list[str] | None) -> None:
     try:
         from app.services.crawl_health import record_crawl_run
         from app.services.job_digest import build_job_digest
-        from app.services.job_feed import crawl_all, list_jobs
+        from app.services.job_feed import crawl_all, list_jobs, organize_feed
 
         _state.progress = "正在抓取岗位源…"
         result = await crawl_all(client_id, providers)
+
+        _state.progress = "正在整理岗位库…"
+        organize_stats = await organize_feed(client_id)
 
         _state.progress = "正在生成岗位摘要…"
         health = record_crawl_run(
@@ -103,6 +106,7 @@ async def _run_crawl(client_id: str, providers: list[str] | None) -> None:
             "total": result["total"],
             "report": result["report"],
             "quality": result.get("quality"),
+            "organize": organize_stats,
             "jobs": list_jobs(client_id),
             "digest": digest,
             "crawl_health": health,

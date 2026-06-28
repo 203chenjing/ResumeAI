@@ -23,7 +23,7 @@ export default function ToastContainer() {
   const { toasts, dismissToast } = useAppStore();
 
   return (
-    <div className="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="snackbar-host">
       {toasts.map((t) => (
         <ToastCard key={t.id} item={t} onDismiss={() => dismissToast(t.id)} />
       ))}
@@ -43,14 +43,15 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: () => void
   return (
     <div
       className={clsx(
-        "pointer-events-auto flex items-start gap-2 p-3 rounded-lg border shadow-lg text-sm",
+        "pointer-events-auto flex items-start gap-2 px-4 py-3 rounded-[var(--radius-md)] border text-sm",
         STYLES[item.type]
       )}
+      style={{ boxShadow: "var(--shadow-md)" }}
       role="alert"
     >
       <Icon size={18} className="flex-shrink-0 mt-0.5" />
       <div className="flex-1 leading-relaxed">{item.message}</div>
-      <button onClick={onDismiss} className="opacity-60 hover:opacity-100 flex-shrink-0">
+      <button onClick={onDismiss} className="opacity-60 hover:opacity-100 flex-shrink-0" aria-label="关闭">
         <X size={16} />
       </button>
     </div>

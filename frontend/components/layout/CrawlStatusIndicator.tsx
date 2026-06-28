@@ -1,27 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import { copy } from "@/lib/copy";
 import { ROUTES } from "@/lib/navigation";
 import { useCrawlStore } from "@/stores/useCrawlStore";
 
-/** 顶栏下 2px 进度线（Gmail / Drive 式，不抢主任务注意力） */
+/** 后台爬虫耗时较长，不在全局布局展示持续动画。 */
 export function CrawlStatusLine() {
-  const status = useCrawlStore((s) => s.status);
-  if (status !== "running") return null;
-
-  return (
-    <div
-      className="h-0.5 w-full shrink-0 bg-[var(--border-faint)] overflow-hidden"
-      aria-hidden
-    >
-      <div className="crawl-indeterminate-bar h-full w-1/4 bg-[var(--primary)] opacity-50" />
-    </div>
-  );
+  return null;
 }
 
-/** 顶栏右侧轻量状态（渐进披露：仅运行中 / 刚完成 / 出错时显示） */
+/** 顶栏右侧低调状态：仅提示后台任务存在，不使用持续动画。 */
 export function CrawlStatusChip() {
   const status = useCrawlStore((s) => s.status);
   const progress = useCrawlStore((s) => s.progress);
@@ -32,15 +21,15 @@ export function CrawlStatusChip() {
 
   if (status === "running") {
     return (
-      <span
-        className="inline-flex items-center gap-1.5 max-w-[11rem] sm:max-w-xs text-xs text-[var(--text-secondary)] truncate"
+      <Link
+        href={ROUTES.jobs}
+        className="hidden sm:inline-flex items-center max-w-[9rem] text-[11px] text-[var(--text-disabled)] hover:text-[var(--text-secondary)] truncate"
         role="status"
         aria-live="polite"
         title={progress || copy.crawl.running}
       >
-        <Loader2 size={12} className="shrink-0 animate-spin opacity-60" aria-hidden />
-        <span className="truncate">{progress || copy.crawl.running}</span>
-      </span>
+        <span className="truncate">岗位库更新中</span>
+      </Link>
     );
   }
 

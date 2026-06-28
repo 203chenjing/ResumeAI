@@ -59,18 +59,7 @@ async def update_status(payload: StatusUpdate):
         raise HTTPException(400, "非法状态")
 
     try:
-        target = next((s for s in sess.suggestions if s.id == payload.suggestion_id), None)
         data = await apply_status_update(sess, payload.suggestion_id, payload.status)
-        if payload.status == "accepted" and target:
-            from app.services.pending_knowledge import extract_pending_from_diff
-
-            extract_pending_from_diff(
-                client_id=payload.client_id,
-                source="suggestion_accept",
-                original_text=target.original_text,
-                new_text=target.suggested_text,
-                context=target.reason,
-            )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
 

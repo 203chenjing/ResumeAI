@@ -53,7 +53,7 @@ export default function CrawlStatusPoller() {
 
         if (data.status === "running") {
           setRunning(data.progress || copy.crawl.running);
-          schedule(2500);
+          schedule(10000);
           return;
         }
 

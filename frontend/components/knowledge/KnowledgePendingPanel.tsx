@@ -72,7 +72,7 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
         </div>
       ) : pending.length === 0 ? (
         <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-          接受简历修改建议后，新内容会出现在这里。确认后合并进知识库。
+          AI 从面试回答、聊天补充中提取的新事实会出现在这里。确认归属经历后写入固定字段。
         </p>
       ) : (
         <ul className="space-y-2 flex-1 overflow-y-auto pr-1">
@@ -82,12 +82,15 @@ export default function KnowledgePendingPanel({ onMerged }: Props) {
               className="p-2 bg-purple-50 border border-purple-100 rounded-lg text-xs"
             >
               <div className="text-[var(--text-secondary)] mb-1">{item.source || "edit"}</div>
-              <p className="text-[var(--text-primary)] line-clamp-3">{item.new_text}</p>
+              <p className="text-[var(--text-primary)] line-clamp-3">
+                {(item.facts || []).map((f) => `${f.field}：${f.value}`).join("；") || item.new_text}
+              </p>
               <div className="flex gap-1 mt-2 justify-end">
                 <button
                   type="button"
-                  onClick={() => resolve(item.id, "confirm")}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-green-700 bg-green-50 rounded hover:bg-green-100"
+                  disabled
+                  title="请在「待核对」工作台选择归属经历后确认"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-green-700 bg-green-50 rounded opacity-50"
                 >
                   <Check size={12} /> 确认
                 </button>

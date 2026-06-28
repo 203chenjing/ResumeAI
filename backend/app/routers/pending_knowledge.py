@@ -17,6 +17,7 @@ class ConfirmPendingBody(BaseModel):
     client_id: str = "default"
     entry_id: str
     action: str = Field(pattern="^(confirm|ignore)$")
+    target_title: str = ""
 
 
 @router.get("/pending-knowledge/{client_id}", response_model=ApiResponse)
@@ -28,7 +29,7 @@ async def get_pending(client_id: str, status: str = "pending"):
 @router.post("/pending-knowledge/confirm", response_model=ApiResponse)
 async def post_confirm(body: ConfirmPendingBody):
     try:
-        item = confirm_pending(body.client_id, body.entry_id, body.action)
+        item = confirm_pending(body.client_id, body.entry_id, body.action, body.target_title)
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
     return ApiResponse(success=True, data=item)

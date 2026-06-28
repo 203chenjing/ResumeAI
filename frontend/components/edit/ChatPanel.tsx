@@ -90,6 +90,7 @@ export default function ChatPanel() {
     confirmed?: PendingConfirm
   ) {
     if (!sessionId) return;
+    let hasAssistantContent = false;
     if (!confirmed) {
       appendChat({ role: "user", content: text });
       appendChat({ role: "assistant", content: "" });
@@ -108,11 +109,16 @@ export default function ChatPanel() {
           : undefined,
       },
       (event) => {
-        if (event.type === "text") updateLastAssistant(event.content);
+        if (event.type === "text") {
+          hasAssistantContent = true;
+          updateLastAssistant(event.content);
+        }
         if (event.type === "thought") {
+          hasAssistantContent = true;
           updateLastAssistant(`\n💭 ${event.content}\n`);
         }
         if (event.type === "tool_call") {
+          hasAssistantContent = true;
           updateLastAssistant(`\n🔧 ${event.action}…\n`);
         }
         if (event.type === "confirmation_required") {
@@ -134,7 +140,9 @@ export default function ChatPanel() {
           setQuickPrompts(buildQuickPrompts({ ...local, preferences: prefs }));
         }
         if (event.type === "done") {
-          if (event.reply) setLastAssistant(event.reply);
+          const reply = event.reply || "";
+          const genericDone = /^(操作完成。?|完成。?|任务已完成。?)$/.test(reply.trim());
+          if (reply && (!hasAssistantContent || !genericDone)) setLastAssistant(reply);
           const { newCount, highlightIds, pendingDelta } = applyEditChatDone(event, sessionSetters);
           const pendingN = event.session?.suggestions?.filter(
             (s) => s.status === "pending" || s.status === "adjusted"

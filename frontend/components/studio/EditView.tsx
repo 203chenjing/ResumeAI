@@ -2,8 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Download, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Download,
+  Loader2,
+  MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import ResumePreview from "@/components/edit/ResumePreview";
 import SuggestionPanel from "@/components/edit/SuggestionPanel";
 import ChatPanel from "@/components/edit/ChatPanel";
@@ -16,8 +24,9 @@ import { getClientId, loadLocalMemory } from "@/lib/userMemory";
 
 export default function EditView() {
   const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
   const [buildingFromKb, setBuildingFromKb] = useState(false);
-  const [kbNotice, setKbNotice] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const {
     sessionId,
     currentMarkdown,
@@ -37,7 +46,17 @@ export default function EditView() {
     density,
     copilotOpen,
     setCopilotOpen,
+    pushToast,
   } = useAppStore();
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -96,19 +115,19 @@ export default function EditView() {
 
   const handleBuildFromKb = useCallback(async () => {
     if (!sessionId || buildingFromKb) return;
+    setMenuOpen(false);
     const kb =
       knowledgeBase.trim() ||
       loadLocalMemory().knowledge_base_md.trim();
     if (!kb) {
-      setKbNotice(copy.edit.kbEmpty);
+      pushToast(copy.edit.kbEmpty, "warning");
       return;
     }
     if (!jdAnalysis) {
-      setKbNotice(copy.prepare.needBoth);
+      pushToast(copy.prepare.needBoth, "warning");
       return;
     }
     setBuildingFromKb(true);
-    setKbNotice("");
     try {
       const res = await api.buildResumeFromKnowledge({
         session_id: sessionId,
@@ -126,9 +145,9 @@ export default function EditView() {
       if (d.match) setMatchResult(d.match);
       if (d.density) setDensity(d.density as DensityInfo);
       if (d.finalize_status) setFinalizeStatus(d.finalize_status as typeof finalizeStatus);
-      setKbNotice(copy.edit.buildFromKbOk(d.suggestions_count));
+      pushToast(copy.edit.buildFromKbOk(d.suggestions_count), "success");
     } catch (e) {
-      setKbNotice((e as Error).message || copy.edit.buildFromKbFail);
+      pushToast((e as Error).message || copy.edit.buildFromKbFail, "error");
     } finally {
       setBuildingFromKb(false);
     }
@@ -143,55 +162,33 @@ export default function EditView() {
     setMatchResult,
     setDensity,
     setFinalizeStatus,
+    pushToast,
   ]);
 
   if (!sessionId) return null;
 
-  const accepted = suggestions.filter((s) => s.status === "accepted").length;
+  const pending = suggestions.filter((s) => s.status === "pending" || s.status === "adjusted").length;
   const showFinalized = finalizeStatus === "finalized" && !!finalizedMarkdown;
   const previewMarkdown = showFinalized ? finalizedMarkdown : currentMarkdown;
+  const contextTitle = jdAnalysis
+    ? [jdAnalysis.company, jdAnalysis.role].filter(Boolean).join(" · ")
+    : "";
 
   return (
     <div className="h-full flex flex-col min-h-0">
       <div className="toolbar">
-        {jdAnalysis && (
-          <span className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[200px]">
-            {jdAnalysis.role}
-            {jdAnalysis.company && (
-              <span className="text-[var(--text-secondary)] font-normal"> · {jdAnalysis.company}</span>
-            )}
+        {contextTitle && (
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[240px]">
+            {contextTitle}
           </span>
         )}
         {matchResult && (
-          <span className="chip-primary">
-            {copy.edit.match(matchResult.overall_score)}
-          </span>
+          <span className="chip-primary">{copy.edit.match(matchResult.overall_score)}</span>
         )}
-        <span className="chip">
-          {copy.edit.accepted(accepted, suggestions.length)}
-        </span>
-        {density && (
-          <span className="chip">{copy.edit.chars(density.char_count)}</span>
-        )}
-        {kbNotice && (
-          <span className="text-xs text-[var(--text-secondary)] max-w-xs truncate" title={kbNotice}>
-            {kbNotice}
-          </span>
+        {pending > 0 && (
+          <span className="chip">{copy.edit.pendingSuggestions(pending)}</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleBuildFromKb}
-            disabled={buildingFromKb || !jdAnalysis}
-            title={copy.edit.buildFromKb}
-            className="btn-secondary text-xs py-1.5"
-          >
-            {buildingFromKb ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
-            {buildingFromKb ? copy.edit.buildFromKbLoading : copy.edit.buildFromKb}
-          </button>
-          <Link href={ROUTES.studioPrepare} className="btn-secondary text-xs py-1.5">
-            <ArrowLeft size={14} /> {copy.edit.backPrepare}
-          </Link>
           <button
             type="button"
             onClick={() => setCopilotOpen(!copilotOpen)}
@@ -206,20 +203,63 @@ export default function EditView() {
             onClick={() => router.push(ROUTES.studioExport)}
             className="btn-primary text-xs py-1.5"
           >
-            <Download size={14} /> {copy.export.title}
+            <Download size={14} /> {copy.edit.exportPdf}
           </button>
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="btn-secondary text-xs py-1.5 px-2"
+              aria-label={copy.edit.moreActions}
+              aria-expanded={menuOpen}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 min-w-[11rem] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-container)] py-1 shadow-lg z-20">
+                <button
+                  type="button"
+                  onClick={handleBuildFromKb}
+                  disabled={buildingFromKb || !jdAnalysis}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-base)] disabled:opacity-40"
+                >
+                  {buildingFromKb ? <Loader2 size={14} className="animate-spin" /> : <BookOpen size={14} />}
+                  {buildingFromKb ? copy.edit.buildFromKbLoading : copy.edit.buildFromKb}
+                </button>
+                <Link
+                  href={ROUTES.studioPrepare}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-base)]"
+                >
+                  <ArrowLeft size={14} /> {copy.edit.backPrepare}
+                </Link>
+                {density && (
+                  <div className="px-3 py-2 text-xs text-[var(--text-secondary)] border-t border-[var(--border-faint)]">
+                    {copy.edit.chars(density.char_count)}
+                    {density.status === "sparse" && (
+                      <span className="block mt-0.5 text-[var(--semantic-warning)]">{density.message}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="flex-1 grid grid-cols-12 min-h-0 overflow-hidden bg-[var(--surface-base)]">
-        <div className="col-span-5 overflow-auto border-r border-[var(--border-faint)] bg-[var(--surface-container)]">
+        <div className="col-span-12 md:col-span-5 overflow-auto border-r border-[var(--border-faint)] bg-[var(--surface-container)]">
           <ResumePreview markdown={previewMarkdown} finalized={showFinalized} sessionId={sessionId} />
         </div>
-        <div className={`overflow-hidden border-r border-[var(--border-faint)] ${copilotOpen ? "col-span-4" : "col-span-7"}`}>
+        <div
+          className={`col-span-12 md:overflow-hidden border-r border-[var(--border-faint)] min-h-0 ${
+            copilotOpen ? "md:col-span-4" : "md:col-span-7"
+          }`}
+        >
           <SuggestionPanel />
         </div>
         {copilotOpen && (
-          <div className="col-span-3 overflow-hidden min-h-0 bg-[var(--surface-container)]">
+          <div className="col-span-12 md:col-span-3 overflow-hidden min-h-0 bg-[var(--surface-container)] border-t md:border-t-0 border-[var(--border-faint)]">
             <ChatPanel />
           </div>
         )}

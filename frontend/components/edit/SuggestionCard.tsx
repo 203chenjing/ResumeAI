@@ -8,10 +8,10 @@ import { copy } from "@/lib/copy";
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   wording: { label: copy.suggestion.types.wording, color: "bg-[var(--primary-muted)] text-[var(--primary)]" },
-  star: { label: copy.suggestion.types.star, color: "bg-purple-50 text-purple-700" },
-  keyword: { label: copy.suggestion.types.keyword, color: "bg-green-50 text-green-700" },
-  structure: { label: copy.suggestion.types.structure, color: "bg-amber-50 text-amber-800" },
-  delete: { label: copy.suggestion.types.delete, color: "bg-red-50 text-red-700" },
+  star: { label: copy.suggestion.types.star, color: "chip-star" },
+  keyword: { label: copy.suggestion.types.keyword, color: "chip-keyword" },
+  structure: { label: copy.suggestion.types.structure, color: "chip-structure" },
+  delete: { label: copy.suggestion.types.delete, color: "chip-delete" },
 };
 
 const SECTION_LABELS: Record<string, string> = copy.suggestion.sections;
@@ -37,7 +37,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
 
   const statusBorder = {
     pending: "border-[var(--border-subtle)]",
-    accepted: "border-green-400 bg-green-50/30",
+    accepted: "border-[var(--semantic-success-border)] bg-[var(--semantic-success-muted)]/30",
     rejected: "border-[var(--border-subtle)] bg-[var(--surface-base)] opacity-60",
     adjusted: "border-[var(--primary)]/40 bg-[var(--primary-muted)]/50",
   }[suggestion.status];
@@ -51,8 +51,8 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
       )}
     >
       <div className="flex items-center gap-2 mb-2">
-        <span className={clsx("px-2 py-0.5 rounded text-xs font-medium", t.color)}>{t.label}</span>
-        <span className="px-2 py-0.5 rounded bg-[var(--surface-base)] text-[var(--text-secondary)] text-xs">
+        <span className={clsx("px-2 py-0.5 rounded-[var(--radius-sm)] text-xs font-medium", t.color)}>{t.label}</span>
+        <span className="px-2 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-base)] text-[var(--text-secondary)] text-xs">
           {sectionLabel}
         </span>
         {suggestion.status === "accepted" && (
@@ -69,7 +69,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
       {suggestion.original_text && suggestion.type !== "delete" && (
         <div className="mb-2">
           <div className="text-xs text-[var(--text-disabled)] mb-1">{copy.suggestion.original}</div>
-          <div className="p-2 bg-[var(--surface-base)] rounded text-[var(--text-secondary)] text-[13px] line-through">
+          <div className="p-2 bg-[var(--surface-base)] rounded-[var(--radius-sm)] text-[var(--text-secondary)] text-sm line-through">
             {suggestion.original_text}
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
         <div className="text-xs text-[var(--text-disabled)] mb-1">
           {suggestion.type === "delete" ? copy.suggestion.delete : copy.suggestion.after}
         </div>
-        <div className="p-2 bg-[var(--semantic-success)]/10 rounded-[var(--radius-sm)] text-[var(--text-primary)] text-[13px]">
+        <div className="p-2 bg-[var(--semantic-success-muted)] rounded-[var(--radius-sm)] text-[var(--text-primary)] text-sm">
           {suggestion.type === "delete" ? suggestion.original_text : suggestion.suggested_text}
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
           {suggestion.jd_match_points.map((p, i) => (
             <span
               key={i}
-              className="px-1.5 py-0.5 bg-[var(--primary-muted)] text-[var(--primary)] rounded text-[11px]"
+              className="px-1.5 py-0.5 bg-[var(--primary-muted)] text-[var(--primary)] rounded-[var(--radius-sm)] text-xs"
             >
               {p}
             </span>
@@ -123,7 +123,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
             <button
               onClick={() => setShowAdjust(!showAdjust)}
               disabled={busy}
-              className="px-2 py-1.5 bg-[var(--primary-muted)] text-[var(--primary)] rounded text-xs hover:opacity-90 flex items-center gap-1 disabled:opacity-50"
+              className="px-2 py-1.5 bg-[var(--primary-muted)] text-[var(--primary)] rounded-[var(--radius-full)] text-xs hover:opacity-90 flex items-center gap-1 disabled:opacity-50"
             >
               <RefreshCw size={12} /> {copy.suggestion.adjust}
             </button>
@@ -132,7 +132,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
           <button
             onClick={onUndo}
             disabled={busy}
-            className="flex-1 px-2 py-1.5 bg-[var(--surface-base)] text-[var(--text-secondary)] rounded text-xs hover:bg-[var(--border-subtle)] flex items-center justify-center gap-1 disabled:opacity-50"
+            className="flex-1 px-2 py-1.5 bg-[var(--surface-base)] text-[var(--text-secondary)] rounded-[var(--radius-sm)] text-xs hover:bg-[var(--border-subtle)] flex items-center justify-center gap-1 disabled:opacity-50"
           >
             <Undo2 size={12} /> {copy.suggestion.undo}
           </button>
@@ -140,7 +140,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
       </div>
 
       {showAdjust && (
-        <div className="mt-2 p-2 bg-[var(--primary-muted)]/50 rounded">
+        <div className="mt-2 p-2 bg-[var(--primary-muted)]/50 rounded-[var(--radius-sm)]">
           <input
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
@@ -154,7 +154,7 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
               setInstruction("");
               setShowAdjust(false);
             }}
-            className="mt-2 px-3 py-1 bg-[var(--primary)] text-white rounded text-xs hover:opacity-90"
+            className="mt-2 px-3 py-1 bg-[var(--primary)] text-white rounded-[var(--radius-full)] text-xs hover:opacity-90"
           >
             {copy.suggestion.adjustSubmit}
           </button>

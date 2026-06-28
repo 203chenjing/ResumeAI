@@ -408,6 +408,8 @@ export interface PendingKnowledgeItem {
   source: string;
   new_text: string;
   original_text: string;
+  facts?: Array<{ field: string; value: string }>;
+  target_title?: string;
   status: string;
   created_at: string;
 }

@@ -55,14 +55,6 @@ html, body {
 .markdown-body ins { background: #e6f4ea; color: #137333; text-decoration: none; padding: 0 2px; }
 .markdown-body del { background: #fce8e6; color: #c5221f; padding: 0 2px; }
 
-@keyframes crawl-indeterminate {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(500%); }
-}
-.crawl-indeterminate-bar {
-  animation: crawl-indeterminate 1.6s ease-in-out infinite;
-}
-
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
@@ -114,7 +106,28 @@ html, body {
     @apply text-sm text-[var(--text-secondary)] mt-1;
   }
   .section-label {
-    @apply text-xs font-medium uppercase tracking-wide text-[var(--text-secondary)];
+    @apply text-xs font-medium text-[var(--text-secondary)];
+  }
+  .input-select {
+    @apply border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-sm bg-[var(--surface-container)] text-[var(--text-primary)];
+  }
+  .input-select:focus {
+    @apply outline-none ring-2 ring-[var(--primary-muted)] border-[var(--primary)];
+  }
+  .chip-star {
+    @apply bg-[var(--semantic-info-muted)] text-[var(--primary)];
+  }
+  .chip-keyword {
+    @apply bg-[var(--semantic-success-muted)] text-[var(--semantic-success)];
+  }
+  .chip-structure {
+    @apply bg-[var(--semantic-warning-muted)] text-[var(--semantic-warning)];
+  }
+  .chip-delete {
+    @apply bg-[var(--semantic-danger-muted)] text-[var(--semantic-danger)];
+  }
+  .snackbar-host {
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-[calc(100%-2rem)] pointer-events-none;
   }
   .page-shell {
     @apply max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8;

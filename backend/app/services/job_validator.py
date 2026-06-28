@@ -267,6 +267,63 @@ def _is_university_publisher_noise(company: str, role: str, jd_text: str, publis
     return False
 
 
+WEAK_COMPANIES = frozenset(
+    {"招聘单位待确认", "待确认公司", "未知企业", "—", "", "待确认", "用人单位待解析"}
+)
+
+COMPANY_BATCH_RE = re.compile(
+    r"^(?P<company>[\u4e00-\u9fffA-Za-z·（）()0-9&]{2,24}?)"
+    r"(?P<batch>\d{2,4})?(?:届)?(?:校招|实习|秋招|春招|提前批|补录|管培)"
+)
+
+
+def normalize_job_fields(job: dict) -> dict:
+    """抓取后字段清洗：从标题拆公司/批次，修正历史脏数据。"""
+    out = dict(job)
+    company = _clean(out.get("company", ""))
+    role = _clean(out.get("role", ""))
+    jd_text = _clean(out.get("jd_text", ""))
+
+    weak_company = not company or company in WEAK_COMPANIES or len(company) < 2
+    blob = role or jd_text
+
+    if blob:
+        from app.crawlers.parsers import parse_nowcoder_card_text
+
+        parsed = parse_nowcoder_card_text(blob) or parse_nowcoder_card_text(jd_text)
+        if parsed.get("company") and (weak_company or company == role):
+            out["company"] = parsed["company"]
+            if parsed.get("role"):
+                out["role"] = parsed["role"]
+            if parsed.get("location") and not out.get("location"):
+                out["location"] = parsed["location"]
+
+    company = _clean(out.get("company", ""))
+    role = _clean(out.get("role", ""))
+    compact = re.sub(r"\s+", "", role or jd_text)
+    if weak_company or company == role:
+        m = COMPANY_BATCH_RE.match(compact)
+        if m and m.group("company"):
+            out["company"] = m.group("company")
+            if not out.get("role") or out.get("role") == company:
+                out["role"] = compact[:80]
+
+    company = _clean(out.get("company", ""))
+    if (not company or company in WEAK_COMPANIES) and blob:
+        from app.crawlers.parsers import _extract_employer_from_title
+
+        employer = _extract_employer_from_title(blob)
+        if employer:
+            out["company"] = employer
+
+    if company and role.startswith(company) and len(role) > len(company) + 6:
+        tail = role[len(company) :].strip(" ·|｜-—")
+        if 4 <= len(tail) <= 40 and not _looks_like_news_title(tail):
+            out["role"] = tail[:80]
+
+    return out
+
+
 def normalize_university_job(job: dict) -> dict:
     """高校就业网：学校是发布方，不是用人单位。"""
     out = dict(job)
@@ -359,7 +416,7 @@ def validate_job(job: dict) -> dict:
     - validation_issues: list[str]
     - tags: 含来源地
     """
-    normalized = normalize_university_job(normalize_nowcoder_job(dict(job)))
+    normalized = normalize_job_fields(normalize_university_job(normalize_nowcoder_job(dict(job))))
 
     if normalized.get("source") in TRUSTED_SOURCES:
         return _validate_trusted(normalized)

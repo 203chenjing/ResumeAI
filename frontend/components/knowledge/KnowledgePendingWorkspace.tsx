@@ -30,8 +30,10 @@ export default function KnowledgePendingWorkspace({
   const [loading, setLoading] = useState(true);
   const [merging, setMerging] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [targets, setTargets] = useState<Record<string, string>>({});
 
   const markers = useMemo(() => extractPendingMarkers(content), [content]);
+  const experienceTitles = useMemo(() => extractExperienceTitles(content), [content]);
 
   const loadSink = useCallback(async () => {
     setLoading(true);
@@ -54,7 +56,9 @@ export default function KnowledgePendingWorkspace({
   }, [focusItemId, markers.length]);
 
   async function resolveSink(id: string, action: "confirm" | "ignore") {
-    await api.confirmPendingKnowledge(getClientId(), id, action);
+    const target = targets[id] || "";
+    if (action === "confirm" && !target) return;
+    await api.confirmPendingKnowledge(getClientId(), id, action, target);
     await loadSink();
   }
 
@@ -101,7 +105,7 @@ export default function KnowledgePendingWorkspace({
     return (
       <div className="py-12 text-center text-sm text-[var(--text-secondary)]">
         <Sparkles size={28} className="mx-auto mb-3 text-[var(--primary)] opacity-60" />
-        <p>暂无待确认项。改稿产生的新事实会出现在「改稿沉淀」区。</p>
+        <p>暂无待确认项。AI 提取出的新事实会先进入候选区，确认归属经历后再写入固定字段。</p>
       </div>
     );
   }
@@ -167,7 +171,7 @@ export default function KnowledgePendingWorkspace({
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-[var(--text-primary)]">
-              改稿沉淀待确认（{sinkPending.length}）
+              候选事实待归档（{sinkPending.length}）
             </h3>
             <button
               type="button"
@@ -175,7 +179,7 @@ export default function KnowledgePendingWorkspace({
               disabled={merging || !sinkItems.some((i) => i.status === "confirmed")}
               className="text-xs text-[var(--primary)] hover:underline disabled:text-[var(--text-disabled)]"
             >
-              {merging ? "合并中…" : "合并已确认到知识库"}
+              {merging ? "合并中…" : "写入已确认字段"}
             </button>
           </div>
           {sinkPending.map((item) => (
@@ -185,19 +189,40 @@ export default function KnowledgePendingWorkspace({
               className="p-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary-muted)]/40 space-y-2"
             >
               <div className="text-xs text-[var(--primary)]">来源：{item.source || copy.knowledge.sourceEdit}</div>
-              {item.original_text && (
-                <p className="text-xs text-[var(--text-disabled)] line-through">
-                  原：{item.original_text.slice(0, 120)}
-                </p>
-              )}
-              <p className="text-sm text-[var(--text-primary)]">{item.new_text}</p>
+              <div className="space-y-1">
+                {(item.facts && item.facts.length > 0
+                  ? item.facts
+                  : [{ field: "待确认", value: item.new_text }]
+                ).map((fact, idx) => (
+                  <div key={`${item.id}-${idx}`} className="flex gap-2 text-sm">
+                    <span className="shrink-0 text-[var(--text-secondary)]">{fact.field}：</span>
+                    <span className="text-[var(--text-primary)]">{fact.value}</span>
+                  </div>
+                ))}
+              </div>
+              <label className="block text-xs text-[var(--text-secondary)]">
+                归属经历
+                <select
+                  className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm text-[var(--text-primary)]"
+                  value={targets[item.id] || ""}
+                  onChange={(e) => setTargets((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                >
+                  <option value="">选择要写入的经历/项目</option>
+                  {experienceTitles.map((title) => (
+                    <option key={title} value={title}>
+                      {title}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
+                  disabled={!targets[item.id]}
                   onClick={() => resolveSink(item.id, "confirm")}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-40"
                 >
-                  <Check size={14} /> 确认沉淀
+                  <Check size={14} /> 确认归档
                 </button>
                 <button
                   type="button"
@@ -213,4 +238,20 @@ export default function KnowledgePendingWorkspace({
       )}
     </div>
   );
+}
+
+function extractExperienceTitles(md: string): string[] {
+  const lines = md.split("\n");
+  const titles: string[] = [];
+  let inExperience = false;
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      inExperience = /实习\s*\/?\s*项目素材|项目素材|实习经历/.test(line);
+      continue;
+    }
+    if (inExperience && line.startsWith("### ")) {
+      titles.push(line.replace(/^###\s+/, "").trim());
+    }
+  }
+  return titles;
 }

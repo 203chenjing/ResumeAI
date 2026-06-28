@@ -14,9 +14,22 @@ from app.services.job_dedup import deduplicate_jobs, is_duplicate, register_fing
 from app.services.job_store import MAX_FEED_SIZE, feed_meta, list_jobs, mark_unseen_stale, save_all
 from app.services.job_validator import validate_job
 
-__all__ = ["list_jobs", "feed_meta", "add_job", "dedupe_feed", "crawl_all"]
+__all__ = [
+    "list_jobs",
+    "feed_meta",
+    "add_job",
+    "dedupe_feed",
+    "organize_feed",
+    "crawl_all",
+    "QUICK_CRAWL_PROVIDERS",
+    "FULL_CRAWL_PROVIDERS",
+]
 
 logger = logging.getLogger(__name__)
+
+# 快速刷新：结构化源优先，少 Playwright 噪声
+QUICK_CRAWL_PROVIDERS = ["github_joblist", "ats_board", "job_aggregator"]
+FULL_CRAWL_PROVIDERS = QUICK_CRAWL_PROVIDERS + ["company_campus", "university_html"]
 
 
 def _is_blocked_domain(url: str, blocked: set[str]) -> bool:
@@ -94,6 +107,24 @@ def _merge_core(
     return final, prepared_new, stats
 
 
+def _sort_jobs_by_quality(jobs: list[dict]) -> list[dict]:
+    def _ts(job: dict) -> float:
+        raw = job.get("crawled_at") or job.get("updated_at") or ""
+        try:
+            return datetime.fromisoformat(str(raw).replace("Z", "")).timestamp()
+        except Exception:
+            return 0.0
+
+    return sorted(
+        jobs,
+        key=lambda j: (
+            0 if j.get("validation_status") == "ok" else 1,
+            0 if j.get("legitimacy") == "trusted" or j.get("source") in {"github_joblist", "ats_board"} else 1,
+            -_ts(j),
+        ),
+    )
+
+
 async def _merge_and_save(
     client_id: str,
     new_raw: list[dict],
@@ -104,15 +135,24 @@ async def _merge_and_save(
 ) -> tuple[list[dict], list[dict], dict]:
     final, prepared_new, stats = _merge_core(client_id, new_raw, existing, blocked=blocked)
 
-    if prepared_new and settings_deepseek_available():
+    if settings_deepseek_available():
         final, ai_stats = await enrich_jobs(final)
         stats["ai_enriched"] = ai_stats.get("enriched", 0)
         stats["ai_tagged"] = ai_stats.get("tagged", 0)
         stats["ai_rejected"] = ai_stats.get("rejected", 0)
+        revalidated: list[dict] = []
+        for job in final:
+            prepared = _prepare_job(job, reject_invalid=False)
+            if prepared and prepared.get("validation_status") != "invalid":
+                revalidated.append(prepared)
+        final = _sort_jobs_by_quality(revalidated)[:MAX_FEED_SIZE]
+        stats["validated_ok"] = sum(1 for j in final if j.get("validation_status") == "ok")
+        stats["validated_weak"] = sum(1 for j in final if j.get("validation_status") == "weak")
     else:
         stats["ai_enriched"] = 0
         stats["ai_tagged"] = 0
         stats["ai_rejected"] = 0
+        final = _sort_jobs_by_quality(final)
 
     save_all(client_id, final)
 
@@ -147,10 +187,48 @@ def dedupe_feed(client_id: str) -> dict:
     enriched = _enrich_existing(existing)
     deduped, stats = deduplicate_jobs(enriched)
     valid_only = [j for j in deduped if j.get("validation_status") != "invalid"]
-    final = valid_only[:MAX_FEED_SIZE]
+    final = _sort_jobs_by_quality(valid_only)[:MAX_FEED_SIZE]
     save_all(client_id, final)
     stats["invalid_removed"] = len(deduped) - len(valid_only)
+    stats["ok_count"] = sum(1 for j in final if j.get("validation_status") == "ok")
+    stats["weak_count"] = sum(1 for j in final if j.get("validation_status") == "weak")
     return {"before": len(existing), "after": len(final), **stats}
+
+
+async def organize_feed(client_id: str) -> dict:
+    """去重 + 重校验 + AI 解析 weak 岗位 + 按质量排序。用户可见的「整理岗位库」。"""
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
+    before = len(existing)
+    enriched = _enrich_existing(existing)
+    deduped, dedup_stats = deduplicate_jobs(enriched)
+    invalid_count = sum(1 for j in deduped if j.get("validation_status") == "invalid")
+    candidates = [j for j in deduped if j.get("validation_status") != "invalid"]
+
+    ai_stats = {"ai_enriched": 0, "ai_tagged": 0, "ai_rejected": 0}
+    if settings_deepseek_available() and candidates:
+        candidates, ai_stats = await enrich_jobs(candidates)
+        revalidated: list[dict] = []
+        for job in candidates:
+            prepared = _prepare_job(job, reject_invalid=False)
+            if prepared and prepared.get("validation_status") != "invalid":
+                revalidated.append(prepared)
+        candidates = revalidated
+        invalid_count += ai_stats.get("ai_rejected", 0)
+
+    final = _sort_jobs_by_quality(candidates)[:MAX_FEED_SIZE]
+    save_all(client_id, final)
+    ok_count = sum(1 for j in final if j.get("validation_status") == "ok")
+    weak_count = sum(1 for j in final if j.get("validation_status") == "weak")
+    return {
+        "before": before,
+        "after": len(final),
+        "invalid_removed": invalid_count,
+        "duplicates_removed": dedup_stats.get("duplicates_removed", 0),
+        "ok_count": ok_count,
+        "weak_count": weak_count,
+        "actionable": ok_count + weak_count,
+        **ai_stats,
+    }
 
 
 async def crawl_all(
@@ -160,7 +238,10 @@ async def crawl_all(
     cfg = load_crawl_config()
     compliance = cfg.get("compliance") or {}
     blocked = set(compliance.get("blocked_domains") or [])
-    names = providers or [n for n, p in (cfg.get("providers") or {}).items() if p.get("enabled", True)]
+    if providers:
+        names = providers
+    else:
+        names = QUICK_CRAWL_PROVIDERS
 
     existing = list_jobs(client_id, include_weak=True, include_expired=True)
     fetched_raw: list[dict] = []

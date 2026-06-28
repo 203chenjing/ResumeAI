@@ -367,10 +367,10 @@ export const api = {
     );
   },
 
-  confirmPendingKnowledge(client_id: string, entry_id: string, action: "confirm" | "ignore") {
+  confirmPendingKnowledge(client_id: string, entry_id: string, action: "confirm" | "ignore", target_title = "") {
     return request<ApiResponse<PendingKnowledgeItem>>("/api/pending-knowledge/confirm", {
       method: "POST",
-      body: JSON.stringify({ client_id, entry_id, action }),
+      body: JSON.stringify({ client_id, entry_id, action, target_title }),
     });
   },
 
@@ -479,6 +479,26 @@ export const api = {
         jobs: JobPosting[];
       }>
     >("/api/jobs/dedupe", {
+      method: "POST",
+      body: JSON.stringify({ client_id }),
+    });
+  },
+
+  organizeJobFeed(client_id: string) {
+    return request<
+      ApiResponse<{
+        before: number;
+        after: number;
+        invalid_removed: number;
+        duplicates_removed: number;
+        ok_count: number;
+        weak_count: number;
+        actionable: number;
+        ai_enriched?: number;
+        jobs: JobPosting[];
+        meta?: JobFeedMeta;
+      }>
+    >("/api/jobs/organize", {
       method: "POST",
       body: JSON.stringify({ client_id }),
     });

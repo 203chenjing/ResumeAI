@@ -8,7 +8,7 @@ from app.crawlers.wechat_article import WechatArticleProvider
 from app.services.crawl_health import get_crawl_health, get_crawl_history, record_crawl_run
 from app.services.crawl_task import get_crawl_state, start_crawl
 from app.services.job_digest import build_job_digest, load_digest
-from app.services.job_feed import add_job, crawl_all, dedupe_feed, feed_meta, list_jobs
+from app.services.job_feed import add_job, crawl_all, dedupe_feed, feed_meta, list_jobs, organize_feed
 from app.services.job_preferences import load_job_preferences, save_job_preferences
 from app.services.master_resume import get_active_master
 from app.services.match_engine import rerank_jobs
@@ -165,6 +165,20 @@ async def post_dedupe(body: DedupeBody):
         data={
             **stats,
             "jobs": list_jobs(body.client_id),
+        },
+    )
+
+
+@router.post("/jobs/organize", response_model=ApiResponse)
+async def post_organize(body: DedupeBody):
+    """去重、过滤噪声、AI 解析 weak 岗位并重新排序。"""
+    stats = await organize_feed(body.client_id)
+    return ApiResponse(
+        success=True,
+        data={
+            **stats,
+            "jobs": list_jobs(body.client_id, include_weak=False),
+            "meta": feed_meta(body.client_id),
         },
     )
 

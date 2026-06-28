@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
-import clsx from "clsx";
+import { FileText } from "lucide-react";import clsx from "clsx";
 import { ROUTES } from "@/lib/navigation";
 import { copy } from "@/lib/copy";
 import { CrawlStatusChip } from "./CrawlStatusIndicator";
@@ -24,8 +23,7 @@ export default function StudioHeader() {
   return (
     <header className="h-14 border-b border-[var(--border-faint)] bg-[var(--surface-container)] flex items-center justify-between px-5 shrink-0">
       <Link href="/" className="flex items-center gap-2 text-[var(--text-primary)] font-medium text-sm hover:text-[var(--primary)] transition-colors">
-        <Sparkles size={18} className="text-[var(--primary)]" />
-        {copy.product.name}
+        <FileText size={18} className="text-[var(--primary)]" />        {copy.product.name}
       </Link>
       <nav className="flex items-center gap-1" aria-label="改稿步骤">
         {STEPS.map((s, i) => {

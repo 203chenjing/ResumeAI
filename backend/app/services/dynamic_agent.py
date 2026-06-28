@@ -287,6 +287,10 @@ async def stream_dynamic_agent(
         action = (decision.get("action") or "").strip()
         action_input = dict(decision.get("action_input") or {})
 
+        if mode == "chat" and (planner_mode == "finish" or action == "finish"):
+            planner_mode = "chat"
+            action = ""
+
         if planner_mode == "confirm" or (planner_mode == "tool" and is_risky_tool(action)):
             if action == "review_suggestions" and not action_input.get("policy"):
                 action_input["policy"] = _review_policy(client_id)
