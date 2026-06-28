@@ -104,7 +104,7 @@ class WechatArticleProvider(CrawlerProvider):
 
         try:
             if fetcher:
-                page = await fetcher.fetch_http(url)
+                page = await fetcher.fetch(url, ignore_robots=True)
                 html = page.html
                 final_url = page.url
             else:

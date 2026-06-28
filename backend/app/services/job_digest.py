@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import settings
+from app.services.job_ai_enrichment import ai_rerank_picks
 from app.services.job_feed import list_jobs
 from app.services.job_preferences import load_job_preferences
 from app.services.llm_client import client
@@ -208,11 +209,13 @@ async def build_job_digest(
                 "reasons": reasons,
                 "is_new": is_new,
                 "jd_url": job.get("jd_url", ""),
+                "ai_summary": job.get("ai_summary", ""),
             }
         )
 
     scored.sort(key=lambda x: (-x["score"], not x["is_new"]))
     picks = scored[:15]
+    picks = await ai_rerank_picks(prefs, picks, resume_hint=resume_md[:500])
     new_count = len(new_set) if new_set else sum(1 for p in picks if p.get("is_new"))
 
     rule = _rule_summary(prefs, new_count, picks)
@@ -229,5 +232,6 @@ async def build_job_digest(
         "priority_jobs": picks,
         "preferences_snapshot": prefs,
         "used_llm": bool(llm),
+        "ai_reranked": bool(settings.deepseek_api_key),
     }
     return save_digest(client_id, digest)

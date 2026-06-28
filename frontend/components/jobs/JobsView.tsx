@@ -34,14 +34,13 @@ import type { CrawlHealth } from "@/lib/types";
 import { copy } from "@/lib/copy";
 
 const PRIORITY_BADGE: Record<string, string> = {
-  P0: "bg-red-100 text-red-700",
-  P1: "bg-amber-100 text-amber-800",
+  P0: "bg-[var(--semantic-danger-muted)] text-[var(--semantic-danger)]",
+  P1: "bg-[var(--semantic-warning-muted)] text-[var(--semantic-warning)]",
   P2: "bg-[var(--surface-base)] text-[var(--text-secondary)]",
 };
 
 const SOURCE_OPTIONS = [
   { id: "", label: "全部来源" },
-  { id: "feishu_bitable", label: "飞书秋招表" },
   { id: "job_aggregator", label: "求职平台" },
   { id: "company_campus", label: "企业官网" },
   { id: "university_html", label: "高校就业网" },
@@ -59,8 +58,6 @@ export default function JobsView() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [crawling, setCrawling] = useState(false);
-  const [syncingFeishu, setSyncingFeishu] = useState(false);
-  const [feishuReady, setFeishuReady] = useState<boolean | null>(null);
   const [wechatUrl, setWechatUrl] = useState("");
   const [filter, setFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
@@ -101,9 +98,6 @@ export default function JobsView() {
   }, [sourceFilter, typeFilter, cityFilter, hideWeak]);
 
   useEffect(() => {
-    api.getFeishuJobStatus().then((res) => {
-      if (res.success && res.data) setFeishuReady(res.data.configured);
-    }).catch(() => setFeishuReady(false));
     api.getCrawlHealth(getClientId()).then((res) => {
       if (res.success && res.data) setCrawlHealth(res.data);
     }).catch(() => {});
@@ -123,40 +117,19 @@ export default function JobsView() {
     }
   }
 
-  async function syncFeishu() {
-    setSyncingFeishu(true);
-    setCrawlReport("");
-    setDigestLoading(true);
-    try {
-      const res = await api.syncFeishuJobs(getClientId());
-      if (res.success && res.data) {
-        setJobs(res.data.jobs);
-        if (res.data.digest) setDigest(res.data.digest);
-        const q = res.data.quality;
-        const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
-        setCrawlReport(`飞书秋招表已同步 ${res.data.new_count} 条，当前共 ${res.data.total} 条${qualityLine}`);
-        await load();
-      }
-    } catch (e) {
-      setCrawlReport(e instanceof Error ? e.message : "飞书同步失败");
-    } finally {
-      setSyncingFeishu(false);
-      setDigestLoading(false);
-    }
-  }
-
-  async function crawl() {
+  async function crawl(providers: string[]) {
     setCrawling(true);
     setCrawlReport("");
     setDigestLoading(true);
     try {
-      const res = await api.crawlJobs(getClientId());
+      const res = await api.crawlJobs(getClientId(), providers);
       if (res.success && res.data) {
         setJobs(res.data.jobs);
         if (res.data.digest) setDigest(res.data.digest);
         const q = res.data.quality;
         const qualityLine = q ? `，其中 ${q.validated_ok ?? 0} 条可投递` : "";
-        setCrawlReport(`已更新 ${res.data.new_count} 条，当前共 ${res.data.total} 条${qualityLine}`);
+        const label = providers.includes("university_html") ? "全量" : "快速";
+        setCrawlReport(`${label}刷新：新增 ${res.data.new_count} 条，当前共 ${res.data.total} 条${qualityLine}`);
         if ((res.data as { crawl_health?: CrawlHealth }).crawl_health) {
           setCrawlHealth((res.data as { crawl_health?: CrawlHealth }).crawl_health!);
         }
@@ -219,6 +192,14 @@ export default function JobsView() {
   function applyJobById(jobId: string) {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
+    api.hub
+      .recordBehavior(getClientId(), "tailor_start", {
+        job_id: job.id,
+        company: job.company,
+        role: job.role,
+      })
+      .catch(() => {});
+    api.hub.recordFunnel(getClientId(), "job_tailor_start", { job_id: job.id }).catch(() => {});
     setStudioFromJob(job);
     setJdText(job.jd_text || "");
     router.push(`${ROUTES.studioPrepare}?from=job`);
@@ -240,26 +221,23 @@ export default function JobsView() {
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
-            onClick={syncFeishu}
-            disabled={syncingFeishu || feishuReady === false}
-            title={
-              feishuReady === false
-                ? "请先在 backend/.env 配置 FEISHU_APP_ID + FEISHU_APP_SECRET"
-                : "从飞书多维表格同步秋招岗位"
-            }
-            className="inline-flex items-center gap-2 px-3 py-2 border border-emerald-200 text-emerald-700 bg-emerald-50 rounded-lg text-sm disabled:opacity-50 hover:bg-emerald-100"
-          >
-            {syncingFeishu ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-            同步飞书秋招表
-          </button>
-          <button
-            type="button"
-            onClick={crawl}
+            onClick={() => crawl(["job_aggregator", "company_campus"])}
             disabled={crawling}
+            title="牛客日程 + 企业官网，约 3–5 分钟"
             className="inline-flex items-center gap-2 px-4 py-2 btn-primary"
           >
             {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             {copy.jobs.refresh}
+          </button>
+          <button
+            type="button"
+            onClick={() => crawl(["job_aggregator", "company_campus", "university_html"])}
+            disabled={crawling}
+            title="含高校就业网，约 10–15 分钟"
+            className="inline-flex items-center gap-2 px-4 py-2 btn-secondary"
+          >
+            {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {copy.jobs.refreshFull}
           </button>
           {selected.size > 0 && (
             <a
@@ -283,18 +261,18 @@ export default function JobsView() {
           {Object.entries(meta.job_types)
             .slice(0, 5)
             .map(([k, v]) => (
-              <span key={k} className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-md">
+              <span key={k} className="chip-primary text-xs">
                 {k} {v}
               </span>
             ))}
           {crawlHealth?.summary && (
             <span
-              className={`px-2 py-1 border rounded-md ${
+              className={`px-2 py-1 border rounded-[var(--radius-sm)] text-xs ${
                 crawlHealth.summary === "healthy"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                  ? "alert-success"
                   : crawlHealth.summary === "degraded"
-                    ? "bg-red-50 text-red-700 border-red-100"
-                    : "bg-amber-50 text-amber-800 border-amber-100"
+                    ? "alert-error"
+                    : "alert-warning"
               }`}
             >
               爬虫 {crawlHealth.summary === "healthy" ? "正常" : crawlHealth.summary === "degraded" ? "异常" : "部分可用"}
@@ -317,9 +295,7 @@ export default function JobsView() {
       />
 
       {crawlReport && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-900">
-          {crawlReport}
-        </div>
+        <div className="mb-4 alert-success">{crawlReport}</div>
       )}
 
       <div className="mb-3 flex flex-wrap gap-2 items-center">
@@ -442,6 +418,22 @@ export default function JobsView() {
                             </span>
                           )}
                           {displayCompany(job)}
+                          {job.legitimacy === "trusted" && (
+                            <span
+                              title="来自官方招聘系统 / 社区维护校招库，真实性高"
+                              className="text-[10px] px-1 py-0.5 rounded font-medium bg-[var(--semantic-success-muted)] text-[var(--semantic-success)]"
+                            >
+                              可信
+                            </span>
+                          )}
+                          {job.legitimacy === "suspect" && (
+                            <span
+                              title="来源未经核实，投递前请确认企业真实性"
+                              className="text-[10px] px-1 py-0.5 rounded font-medium bg-[var(--semantic-warning-muted)] text-[var(--semantic-warning)]"
+                            >
+                              待核实
+                            </span>
+                          )}
                         </div>
                         {displayCompany(job) === "—" && job.source === "university_html" && (
                           <div className="text-[11px] text-[var(--text-disabled)] mt-0.5">用人单位待解析</div>
@@ -456,7 +448,7 @@ export default function JobsView() {
                         ))}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <div className="text-blue-700 font-medium">{displayRole(job)}</div>
+                        <div className="text-[var(--primary)] font-medium">{displayRole(job)}</div>
                         {positions && (
                           <div className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2" title={positions}>
                             {positions}
@@ -477,7 +469,7 @@ export default function JobsView() {
                         <span className="text-xs text-[var(--text-primary)]">{publisherLabel(job)}</span>
                         <div className="text-[10px] text-[var(--text-disabled)] mt-0.5">{sourceLabel(job)}</div>
                         {job.validation_status === "weak" && (
-                          <div className="text-[10px] text-amber-700 mt-0.5">待补全</div>
+                          <div className="text-[10px] text-[var(--semantic-warning)] mt-0.5">待补全</div>
                         )}
                       </td>
                       <td className="px-3 py-2 align-top text-right whitespace-nowrap">
@@ -492,10 +484,18 @@ export default function JobsView() {
                               <ExternalLink size={12} /> 官方
                             </a>
                           )}
+                          {job.referral_code && (
+                            <span
+                              title="内推码（投递时填写可加速）"
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary-muted)] text-[var(--primary)] font-mono"
+                            >
+                              内推 {job.referral_code}
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => startWithJob(job, e)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[var(--primary)] text-white rounded-md hover:opacity-90"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs btn-primary"
                           >
                             <Sparkles size={12} /> 改简历
                           </button>
@@ -511,8 +511,7 @@ export default function JobsView() {
       )}
       <CareerCopilotPanel
         onApplyJob={applyJobById}
-        onCrawl={crawl}
-        onSyncFeishu={syncFeishu}
+        onCrawl={() => crawl(["job_aggregator", "company_campus"])}
         onFilter={(q) => setFilter(q)}
         onCompare={(ids) => router.push(`/jobs/compare?ids=${ids.join(",")}`)}
       />

@@ -34,6 +34,26 @@ CITIES = (
     "雄安",
 )
 
+# 中国大陆地点判定（含在华外企常见城市的英文写法）。
+CHINA_LOCATION_HINTS = (
+    "中国", "大陆", "全国", "china", "mainland", "prc",
+    "beijing", "shanghai", "shenzhen", "guangzhou", "hangzhou",
+    "chengdu", "nanjing", "suzhou", "wuhan", "xi'an", "xian",
+    "tianjin", "chongqing", "dalian", "ningbo", "xiamen", "hefei",
+    "dongguan", "changsha", "qingdao", "zhuhai", "foshan", "wuxi",
+)
+
+
+def is_china_location(text: str) -> bool:
+    """判断地点/文本是否指向中国大陆（含在华外企）。"""
+    if not text:
+        return False
+    low = text.lower()
+    if any(c in text for c in CITIES):
+        return True
+    return any(h in low for h in CHINA_LOCATION_HINTS)
+
+
 NOISE_EXACT = frozenset(
     {
         "首页",
@@ -63,7 +83,6 @@ INTERNAL_TAGS = frozenset(
         "company_campus",
         "university_html",
         "wechat_article",
-        "feishu_bitable",
         "聚合",
     }
 )
@@ -73,8 +92,12 @@ SOURCE_LABELS = {
     "company_campus": "企业官网",
     "university_html": "高校就业网",
     "wechat_article": "公众号",
-    "feishu_bitable": "飞书秋招表",
+    "github_joblist": "GitHub校招库",
+    "ats_board": "企业ATS",
 }
+
+# 这些来源为结构化官方/社区数据，字段干净但 JD 正文短，跳过严格正文校验。
+TRUSTED_SOURCES = frozenset({"github_joblist", "ats_board"})
 
 ARTICLE_TITLE_KEYWORDS = (
     "汇总",
@@ -94,6 +117,39 @@ ARTICLE_TITLE_KEYWORDS = (
     "实践活动",
     "实践招募",
     "版权所有",
+    "京彩大创",
+    "创新创业大赛",
+    "洽谈会",
+    "宣介",
+    "人才宣介",
+    "博士后",
+    "开幕",
+    "部署会",
+    "公示",
+    "关于公布",
+    "关于举办",
+    "关于召开",
+    "报名通知",
+    "赛事",
+    "获奖名单",
+)
+
+NEWS_TITLE_PATTERNS = (
+    re.compile(r"关于(公布|举办|召开|开展)"),
+    re.compile(r"(大赛|洽谈会|宣介|开幕式|部署会|通知)(来[了啦]|顺|暨)"),
+    re.compile(r"第五届|第四届|第三届"),
+    re.compile(r"岗位合集"),
+)
+
+LIST_PAGE_PATH_MARKERS = (
+    "/anony/xxfb",
+    "/recruitmentinfoList",
+    "/recruitmentFairList",
+    "/recruitmentinfoList.html",
+)
+
+JOB_SIGNAL_RE = re.compile(
+    r"(工程师|开发|算法|产品|运营|设计|管培|分析师|研究员|实习|校招|秋招|春招|提前批|补录|招聘)"
 )
 
 JOB_TYPE_RULES = (
@@ -176,6 +232,18 @@ def extract_published_at(text: str) -> str:
     return f"{year}-{month:02d}-{day:02d}"
 
 
+def _is_list_page_url(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return any(m.lower() in path for m in LIST_PAGE_PATH_MARKERS)
+
+
+def _looks_like_news_title(text: str) -> bool:
+    t = text or ""
+    if any(k in t for k in ARTICLE_TITLE_KEYWORDS):
+        return True
+    return any(p.search(t) for p in NEWS_TITLE_PATTERNS)
+
+
 def _is_university_as_employer(company: str, publisher: str) -> bool:
     if not company:
         return False
@@ -184,6 +252,17 @@ def _is_university_as_employer(company: str, publisher: str) -> bool:
     if company.startswith("地址"):
         return True
     if any(m in company for m in ("大学", "学院", "学校", "职介", "就业指导")) and len(company) <= 24:
+        return True
+    return False
+
+
+def _is_university_publisher_noise(company: str, role: str, jd_text: str, publisher: str) -> bool:
+    blob = f"{role} {jd_text}"
+    if publisher and company == publisher and _looks_like_news_title(blob):
+        return True
+    if _is_university_as_employer(company, publisher) and _looks_like_news_title(blob):
+        return True
+    if re.search(r"(大学|学院|学校|就业信息网)$", company) and _looks_like_news_title(blob):
         return True
     return False
 
@@ -240,6 +319,39 @@ def normalize_nowcoder_job(job: dict) -> dict:
     return out
 
 
+def _validate_trusted(normalized: dict) -> dict:
+    """结构化官方/社区来源：字段干净，仅做轻量校验与 enrichment。"""
+    issues: list[str] = []
+    company = _clean(normalized.get("company", ""))
+    role = _clean(normalized.get("role", ""))
+    jd_text = _clean(normalized.get("jd_text", ""))
+    jd_url = _clean(normalized.get("jd_url", ""))
+
+    if len(company) < 2:
+        issues.append("公司名过短")
+    if len(role) < 3:
+        issues.append("岗位标题无效")
+
+    status = "invalid" if issues else "ok"
+    if status == "ok" and not jd_url:
+        status = "weak"
+        issues.append("无官方链接")
+
+    locations = extract_locations(jd_text or normalized.get("location", ""))
+    out = normalized
+    out["company"] = company
+    out["role"] = role[:200]
+    out["jd_text"] = (jd_text or f"{company} {role}").strip()[:2000]
+    out["locations"] = locations or normalized.get("locations") or []
+    out["job_type"] = infer_job_type(f"{role} {jd_text}")
+    if not out.get("legitimacy"):
+        out["legitimacy"] = "trusted"
+    out["validation_status"] = status
+    out["validation_issues"] = issues
+    out["tags"] = build_tags(out)
+    return out
+
+
 def validate_job(job: dict) -> dict:
     """
     校验岗位信息，返回 enrichment 后的 dict：
@@ -248,6 +360,10 @@ def validate_job(job: dict) -> dict:
     - tags: 含来源地
     """
     normalized = normalize_university_job(normalize_nowcoder_job(dict(job)))
+
+    if normalized.get("source") in TRUSTED_SOURCES:
+        return _validate_trusted(normalized)
+
     issues: list[str] = []
     company = _clean(normalized.get("company", ""))
     role = _clean(normalized.get("role", ""))
@@ -290,11 +406,26 @@ def validate_job(job: dict) -> dict:
             publisher = str(t).replace("发布方:", "", 1).strip()
             break
 
-    if any(k in role for k in ARTICLE_TITLE_KEYWORDS) or any(k in jd_text for k in ARTICLE_TITLE_KEYWORDS):
+    if _looks_like_news_title(role) or _looks_like_news_title(jd_text):
         issues.append("疑似资讯标题非具体岗位")
+
+    if _is_university_publisher_noise(company, role, jd_text, publisher):
+        issues.append("高校资讯非招聘岗位")
+
+    if normalized.get("source") == "university_html" and jd_url and _is_list_page_url(jd_url):
+        issues.append("链接为列表页非岗位详情")
 
     if normalized.get("source") == "university_html" and _is_university_as_employer(company, publisher):
         issues.append("高校发布方误作用人单位")
+
+    if (
+        normalized.get("source") == "job_aggregator"
+        and normalized.get("channel") in ("区域就业平台", "求职聚合")
+        and "nowcoder.com/enterprise" not in jd_url
+        and not JOB_SIGNAL_RE.search(f"{role} {jd_text}")
+        and _looks_like_news_title(f"{role} {jd_text}")
+    ):
+        issues.append("聚合站活动资讯非岗位")
 
     if len(role) > 45 and not re.search(r"(工程师|产品|运营|设计|开发|算法|数据|实习|管培|分析师)", role):
         issues.append("标题过长疑似未解析")
@@ -315,6 +446,9 @@ def validate_job(job: dict) -> dict:
             "JD 正文过短",
             "标题过长疑似未解析",
             "疑似资讯标题非具体岗位",
+            "高校资讯非招聘岗位",
+            "链接为列表页非岗位详情",
+            "聚合站活动资讯非岗位",
             "高校发布方误作用人单位",
         }
         if invalid_hits & set(issues):

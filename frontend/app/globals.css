@@ -15,8 +15,16 @@
   --text-secondary: #5f6368;
   --text-disabled: #9aa0a6;
   --semantic-success: #188038;
+  --semantic-success-muted: #e6f4ea;
+  --semantic-success-border: #ceead6;
   --semantic-warning: #e37400;
+  --semantic-warning-muted: #fef7e0;
+  --semantic-warning-border: #feefc3;
   --semantic-danger: #d93025;
+  --semantic-danger-muted: #fce8e6;
+  --semantic-danger-border: #f9dedc;
+  --semantic-info-muted: #e8f0fe;
+  --semantic-info-border: #d2e3fc;
   --shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.08), 0 1px 3px rgba(60, 64, 67, 0.06);
   --shadow-md: 0 1px 3px rgba(60, 64, 67, 0.12), 0 4px 8px rgba(60, 64, 67, 0.08);
   --shadow-lg: 0 2px 6px rgba(60, 64, 67, 0.1), 0 8px 24px rgba(60, 64, 67, 0.08);
@@ -178,20 +186,28 @@ html, body {
   .empty-state {
     @apply text-center py-12 px-4 text-sm text-[var(--text-secondary)];
   }
+  .alert-success {
+    @apply rounded-[var(--radius-sm)] border px-3 py-2 text-sm;
+    background: var(--semantic-success-muted);
+    border-color: var(--semantic-success-border);
+    color: var(--semantic-success);
+  }
   .alert-warning {
-    @apply p-4 rounded-[var(--radius-md)] border text-sm;
-    border-color: color-mix(in srgb, var(--semantic-warning) 25%, transparent);
-    background: color-mix(in srgb, var(--semantic-warning) 8%, var(--surface-container));
-    color: var(--text-primary);
+    @apply rounded-[var(--radius-sm)] border px-3 py-2 text-sm;
+    background: var(--semantic-warning-muted);
+    border-color: var(--semantic-warning-border);
+    color: var(--semantic-warning);
   }
   .alert-error {
-    @apply p-3 rounded-[var(--radius-sm)] text-sm flex items-start gap-2;
-    background: #fce8e6;
-    color: #c5221f;
+    @apply rounded-[var(--radius-sm)] border px-3 py-2 text-sm;
+    background: var(--semantic-danger-muted);
+    border-color: var(--semantic-danger-border);
+    color: var(--semantic-danger);
   }
   .alert-info {
-    @apply p-3 rounded-[var(--radius-sm)] text-sm flex items-start gap-2;
-    background: var(--primary-muted);
+    @apply rounded-[var(--radius-sm)] border px-3 py-2 text-sm;
+    background: var(--semantic-info-muted);
+    border-color: var(--semantic-info-border);
     color: var(--primary);
   }
   .text-link {

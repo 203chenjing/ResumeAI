@@ -95,9 +95,14 @@ class CrawlFetcher:
         self.rate_limit_rps = float(c.get("rate_limit_rps", 0.5))
         self.respect_robots = bool(c.get("respect_robots", True))
         self.user_agent = c.get("user_agent", "ResumeAI-Crawler/1.0")
+        self.robots_bypass_domains = tuple(c.get("robots_bypass_domains") or [])
         self._min_interval = 1.0 / self.rate_limit_rps if self.rate_limit_rps > 0 else 0.0
         self._last_fetch = 0.0
         self._robots: dict[str, RobotFileParser] = {}
+
+    def _bypass_robots(self, url: str) -> bool:
+        host = urlparse(url).netloc.lower()
+        return any(d in host for d in self.robots_bypass_domains)
 
     async def _throttle(self) -> None:
         if self._min_interval <= 0:
@@ -109,7 +114,7 @@ class CrawlFetcher:
         self._last_fetch = asyncio.get_event_loop().time()
 
     def _allowed(self, url: str) -> bool:
-        if not self.respect_robots:
+        if not self.respect_robots or self._bypass_robots(url):
             return True
         parsed = urlparse(url)
         base = f"{parsed.scheme}://{parsed.netloc}"

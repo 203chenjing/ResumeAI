@@ -4,15 +4,15 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { prepareResumePreviewMarkdown, stripPhotoMarkdown } from "@/lib/resumePreviewTransform";
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function markdownForPreview(md: string, sessionId?: string) {
   let text = md;
   if (sessionId) {
+    const photoUrl = `${API_BASE}/api/knowledge-base/photo/${sessionId}`;
     text = text.replace(
       /!\[个人照片\]\([^)]+\)/,
-      `![个人照片](${API_BASE}/api/knowledge-base/photo/${sessionId})`
+      `![个人照片](${photoUrl})`
     );
   }
   const { md: withoutPhoto, hadPhoto } = stripPhotoMarkdown(text);

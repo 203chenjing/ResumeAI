@@ -52,10 +52,8 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm rounded-lg text-white ${
-              variant === "danger"
-                ? "bg-[var(--semantic-danger)] hover:opacity-90"
-                : "bg-[var(--semantic-warning)] hover:opacity-90"
+            className={`btn-primary px-4 py-2 ${
+              variant === "danger" ? "!bg-[var(--semantic-danger)] hover:!bg-[var(--semantic-danger)]" : "!bg-[var(--semantic-warning)] hover:!bg-[var(--semantic-warning)]"
             }`}
           >
             {confirmLabel}

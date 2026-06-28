@@ -504,7 +504,11 @@ async def parse_source_page(
 
     parser = source.get("parser", "generic_list")
     use_pw = source.get("use_playwright", True)
-    ignore_robots = bool(source.get("ignore_robots", False))
+    ignore_robots = (
+        bool(source["ignore_robots"])
+        if "ignore_robots" in source
+        else provider_name == "university_html"
+    )
     source_id = source.get("id", uuid.uuid4().hex[:8])
     name = source.get("name", source_id)
     channel = source.get("channel", "高校就业网" if provider_name == "university_html" else "企业校招")

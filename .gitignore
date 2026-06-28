@@ -15,5 +15,6 @@ backend/scripts/e2e_report.json
 backend/scripts/fixtures/*
 !backend/scripts/fixtures/.gitkeep
 backend/data/
+backend/.deepeval/
 .vscode/
 .idea/

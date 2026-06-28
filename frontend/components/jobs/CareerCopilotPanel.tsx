@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2, Send, X } from "lucide-react";
+import { Sparkles, Loader2, X } from "lucide-react";
+import ChatInput from "@/components/ui/ChatInput";
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { CareerCopilotEvent, GenUiBlock } from "@/lib/types";
@@ -20,7 +21,6 @@ const STARTERS = [
 type Props = {
   onApplyJob: (jobId: string) => void;
   onCrawl: () => void;
-  onSyncFeishu: () => void;
   onFilter: (q: string) => void;
   onCompare: (ids: string[]) => void;
 };
@@ -28,7 +28,6 @@ type Props = {
 export default function CareerCopilotPanel({
   onApplyJob,
   onCrawl,
-  onSyncFeishu,
   onFilter,
   onCompare,
 }: Props) {
@@ -73,7 +72,6 @@ export default function CareerCopilotPanel({
 
   function handleAction(action: string, payload?: Record<string, unknown>) {
     if (action === "crawl") onCrawl();
-    if (action === "sync_feishu") onSyncFeishu();
     if (action === "compare" && payload?.job_ids) onCompare(payload.job_ids as string[]);
     if (action === "navigate" && payload?.path) window.location.href = String(payload.path);
   }
@@ -92,11 +90,12 @@ export default function CareerCopilotPanel({
 
   return (
     <div className="fixed bottom-6 right-6 z-40 w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl border border-[var(--border-subtle)] shadow-2xl bg-[var(--surface-container)] overflow-hidden max-h-[min(640px,calc(100vh-4rem))]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--primary)] text-white">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles size={18} /> {copy.jobs.copilotTitle}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+          <Sparkles size={16} className="text-[var(--primary)]" />
+          {copy.jobs.copilotTitle}
         </div>
-        <button type="button" onClick={() => setOpen(false)} className="p-1 hover:bg-white/20 rounded" aria-label={copy.common.close}>
+        <button type="button" onClick={() => setOpen(false)} className="btn-ghost p-1" aria-label={copy.common.close}>
           <X size={16} />
         </button>
       </div>
@@ -105,10 +104,10 @@ export default function CareerCopilotPanel({
         {messages.map((m, i) => (
           <div key={i} className={m.role === "user" ? "text-right" : ""}>
             <div
-              className={`inline-block max-w-[95%] rounded-xl px-3 py-2 ${
+              className={`inline-block max-w-[95%] rounded-[var(--radius-md)] px-3 py-2 ${
                 m.role === "user"
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--surface-base)] text-[var(--text-primary)]"
+                  ? "bg-[var(--primary-muted)] text-[var(--text-primary)]"
+                  : "bg-[var(--surface-base)] text-[var(--text-secondary)]"
               }`}
             >
               {m.text}
@@ -143,27 +142,15 @@ export default function CareerCopilotPanel({
         ))}
       </div>
 
-      <form
-        className="flex gap-2 p-3 border-t border-[var(--border-subtle)]"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <input
+      <div className="p-3 border-t border-[var(--border-subtle)]">
+        <ChatInput
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={setInput}
+          onSend={send}
           placeholder={copy.jobs.copilotPlaceholder}
-          className="flex-1 text-sm input-field"
+          streaming={streaming}
         />
-        <button
-          type="submit"
-          disabled={streaming}
-          className="p-2 rounded-lg bg-[var(--primary)] text-white disabled:opacity-50"
-        >
-          {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

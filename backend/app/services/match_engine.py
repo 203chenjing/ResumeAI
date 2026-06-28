@@ -228,13 +228,22 @@ def rerank_jobs(
     jobs: list[dict],
     *,
     prefs: dict | None = None,
+    behavior_profile: dict | None = None,
     top_k: int = 20,
 ) -> list[dict]:
-    """按混合分对岗位重排，返回带 score_breakdown 的行。"""
+    """按混合分对岗位重排，返回带 score_breakdown 的行。可选行为飞轮加权。"""
+    from app.services.behavior_signals import behavior_boost_for_job
+
     scored: list[dict] = []
     for job in jobs:
         jd_text = job.get("jd_text", "") or job.get("role", "")
         match, breakdown = hybrid_match_score(resume_md, jd_text, prefs=prefs)
+        beh, beh_reasons = behavior_boost_for_job(job, behavior_profile)
+        hybrid = breakdown.overall
+        if beh < -0.3:
+            hybrid = max(5, hybrid - 40)
+        else:
+            hybrid = int(min(99, hybrid + round(beh * 100)))
         scored.append(
             {
                 "job": job,
@@ -244,8 +253,10 @@ def rerank_jobs(
                     "skill": breakdown.skill,
                     "jaccard": breakdown.jaccard,
                     "preference": breakdown.preference,
+                    "behavior": round(beh * 100, 1),
                 },
-                "hybrid_score": breakdown.overall,
+                "hybrid_score": hybrid,
+                "behavior_reasons": beh_reasons,
             }
         )
     scored.sort(key=lambda x: x["hybrid_score"], reverse=True)

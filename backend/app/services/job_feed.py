@@ -1,43 +1,22 @@
-"""岗位 Feed 缓存：聚合爬虫结果（读取 crawl_sources.yml）。"""
+"""岗位 Feed：聚合爬虫结果，SQLite 存储 + AI  enrichment。"""
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime
-from pathlib import Path
 from urllib.parse import urlparse
 
 from app.crawlers.crawl_config import get_provider_config, load_crawl_config
 from app.crawlers.fetcher import CrawlFetcher
 from app.crawlers.registry import PROVIDERS
+from app.services.job_ai_enrichment import enrich_jobs
 from app.services.job_dedup import deduplicate_jobs, is_duplicate, register_fingerprint
+from app.services.job_store import MAX_FEED_SIZE, feed_meta, list_jobs, mark_unseen_stale, save_all
 from app.services.job_validator import validate_job
 
+__all__ = ["list_jobs", "feed_meta", "add_job", "dedupe_feed", "crawl_all"]
+
 logger = logging.getLogger(__name__)
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "job_feed"
-MAX_FEED_SIZE = 500
-
-
-def _path(client_id: str) -> Path:
-    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in client_id)[:64] or "default"
-    return DATA_DIR / f"{safe}.json"
-
-
-def _load(client_id: str) -> list[dict]:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    p = _path(client_id)
-    if not p.exists():
-        return []
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return []
-
-
-def _save(client_id: str, jobs: list[dict]) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    _path(client_id).write_text(json.dumps(jobs, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _is_blocked_domain(url: str, blocked: set[str]) -> bool:
@@ -49,7 +28,6 @@ def _is_blocked_domain(url: str, blocked: set[str]) -> bool:
 
 
 def _prepare_job(raw: dict, *, reject_invalid: bool = True) -> dict | None:
-    """校验 + 打标签（含来源地）。"""
     validated = validate_job(raw)
     if reject_invalid and validated.get("validation_status") == "invalid":
         return None
@@ -61,7 +39,6 @@ def _prepare_job(raw: dict, *, reject_invalid: bool = True) -> dict | None:
 
 
 def _enrich_existing(jobs: list[dict]) -> list[dict]:
-    """对历史数据补全校验与标签（不丢弃 invalid）。"""
     out: list[dict] = []
     for j in jobs:
         v = validate_job(j)
@@ -71,14 +48,13 @@ def _enrich_existing(jobs: list[dict]) -> list[dict]:
     return out
 
 
-def _merge_and_save(
+def _merge_core(
     client_id: str,
     new_raw: list[dict],
     existing: list[dict],
     *,
     blocked: set[str],
 ) -> tuple[list[dict], list[dict], dict]:
-    """校验新岗位 → 与存量合并 → 全量去重 → 保存。"""
     stats = {
         "validated_ok": 0,
         "validated_weak": 0,
@@ -113,87 +89,66 @@ def _merge_and_save(
     merged = prepared_new + _enrich_existing(existing)
     deduped, dedup_stats = deduplicate_jobs(merged)
     final = deduped[:MAX_FEED_SIZE]
-    _save(client_id, final)
     stats.update(dedup_stats)
     stats["saved"] = len(final)
     return final, prepared_new, stats
 
 
-def list_jobs(
+async def _merge_and_save(
     client_id: str,
-    source: str | None = None,
+    new_raw: list[dict],
+    existing: list[dict],
     *,
-    job_type: str | None = None,
-    work_city: str | None = None,
-    include_invalid: bool = False,
-    include_weak: bool = True,
-) -> list[dict]:
-    jobs = _enrich_existing(_load(client_id))
-    if source:
-        jobs = [j for j in jobs if j.get("source") == source]
-    if job_type:
-        jobs = [j for j in jobs if j.get("job_type") == job_type]
-    if work_city:
-        jobs = [
-            j
-            for j in jobs
-            if work_city in (j.get("locations") or [])
-            or work_city in (j.get("location") or "")
-            or any(work_city in t for t in (j.get("tags") or []) if t.startswith("工作地:"))
-        ]
-    if not include_invalid:
-        jobs = [j for j in jobs if j.get("validation_status") != "invalid"]
-    if not include_weak:
-        jobs = [j for j in jobs if j.get("validation_status") != "weak"]
-    jobs.sort(
-        key=lambda j: j.get("published_at") or j.get("crawled_at") or "",
-        reverse=True,
-    )
-    return jobs
+    blocked: set[str],
+    crawled_sources: set[str] | None = None,
+) -> tuple[list[dict], list[dict], dict]:
+    final, prepared_new, stats = _merge_core(client_id, new_raw, existing, blocked=blocked)
+
+    if prepared_new and settings_deepseek_available():
+        final, ai_stats = await enrich_jobs(final)
+        stats["ai_enriched"] = ai_stats.get("enriched", 0)
+        stats["ai_tagged"] = ai_stats.get("tagged", 0)
+        stats["ai_rejected"] = ai_stats.get("rejected", 0)
+    else:
+        stats["ai_enriched"] = 0
+        stats["ai_tagged"] = 0
+        stats["ai_rejected"] = 0
+
+    save_all(client_id, final)
+
+    seen_ids = {j.get("id") for j in final if j.get("id")}
+    stats["expired_marked"] = 0
+    if crawled_sources:
+        stats["expired_marked"] = mark_unseen_stale(client_id, seen_ids, sources=crawled_sources)
+
+    return final, prepared_new, stats
 
 
-def feed_meta(client_id: str) -> dict:
-    jobs = list_jobs(client_id, include_weak=True)
-    types: dict[str, int] = {}
-    sources: dict[str, int] = {}
-    cities: dict[str, int] = {}
-    for j in jobs:
-        jt = j.get("job_type") or "校招"
-        types[jt] = types.get(jt, 0) + 1
-        src = j.get("source") or "unknown"
-        sources[src] = sources.get(src, 0) + 1
-        for loc in j.get("locations") or []:
-            cities[loc] = cities.get(loc, 0) + 1
-    crawled = [j.get("crawled_at") for j in jobs if j.get("crawled_at")]
-    return {
-        "total": len(jobs),
-        "job_types": types,
-        "sources": sources,
-        "work_cities": cities,
-        "last_crawled_at": max(crawled) if crawled else "",
-    }
+def settings_deepseek_available() -> bool:
+    from app.config import settings
+    return bool(settings.deepseek_api_key)
 
 
 def add_job(client_id: str, job: dict) -> dict:
-    existing = _load(client_id)
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
     prepared = _prepare_job(job, reject_invalid=False)
     if not prepared:
         raise ValueError("岗位信息无效")
-    merged, prepared_new, _ = _merge_and_save(client_id, [prepared], existing, blocked=set())
-    for j in merged:
+    final, _, _ = _merge_core(client_id, [prepared], existing, blocked=set())
+    save_all(client_id, final)
+    for j in final:
         if j.get("id") == prepared.get("id"):
             return j
     return prepared
 
 
 def dedupe_feed(client_id: str) -> dict:
-    """对已有 Feed 全量校验、打标签、去重，并剔除 invalid。"""
-    existing = _load(client_id)
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
     enriched = _enrich_existing(existing)
     deduped, stats = deduplicate_jobs(enriched)
     valid_only = [j for j in deduped if j.get("validation_status") != "invalid"]
     final = valid_only[:MAX_FEED_SIZE]
-    _save(client_id, final)
+    save_all(client_id, final)
     stats["invalid_removed"] = len(deduped) - len(valid_only)
     return {"before": len(existing), "after": len(final), **stats}
 
@@ -202,15 +157,15 @@ async def crawl_all(
     client_id: str,
     providers: list[str] | None = None,
 ) -> dict:
-    """执行爬虫批次，返回 new_jobs + crawl_report。"""
     cfg = load_crawl_config()
     compliance = cfg.get("compliance") or {}
     blocked = set(compliance.get("blocked_domains") or [])
     names = providers or [n for n, p in (cfg.get("providers") or {}).items() if p.get("enabled", True)]
 
-    existing = _load(client_id)
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
     fetched_raw: list[dict] = []
     report: list[dict] = []
+    crawled_sources: set[str] = set()
     fetcher = CrawlFetcher(compliance)
 
     try:
@@ -229,6 +184,7 @@ async def crawl_all(
                 fetched = await provider.fetch(pconf, fetcher)
                 for job in fetched:
                     fetched_raw.append(job.to_dict())
+                    crawled_sources.add(job.source)
 
                 report.append(
                     {
@@ -251,7 +207,13 @@ async def crawl_all(
     finally:
         await fetcher.close()
 
-    merged, new_jobs, quality = _merge_and_save(client_id, fetched_raw, existing, blocked=blocked)
+    merged, new_jobs, quality = await _merge_and_save(
+        client_id,
+        fetched_raw,
+        existing,
+        blocked=blocked,
+        crawled_sources=crawled_sources or None,
+    )
 
     return {
         "new_jobs": new_jobs,

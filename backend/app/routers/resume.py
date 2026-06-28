@@ -1,6 +1,6 @@
 """简历上传 + 解析 router。"""
 import logging
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 from app.config import settings
 from app.models.schemas import ApiResponse
@@ -13,7 +13,10 @@ router = APIRouter(prefix="/api", tags=["resume"])
 
 
 @router.post("/parse-resume", response_model=ApiResponse)
-async def parse_resume(file: UploadFile = File(...)):
+async def parse_resume(
+    file: UploadFile = File(...),
+    client_id: str = Query("default"),
+):
     raw = await file.read()
     if len(raw) > settings.max_file_size_mb * 1024 * 1024:
         raise HTTPException(413, f"文件超过 {settings.max_file_size_mb}MB 限制")
@@ -35,6 +38,10 @@ async def parse_resume(file: UploadFile = File(...)):
     sess.status = "parsed"
     store.update(sess)
 
+    from app.services.today_briefing import build_aha_after_upload
+
+    aha = build_aha_after_upload(client_id, md)
+
     return ApiResponse(
         success=True,
         data={
@@ -42,5 +49,6 @@ async def parse_resume(file: UploadFile = File(...)):
             "format": fmt,
             "parsed": parsed.model_dump(),
             "markdown": md,
+            "aha": aha,
         },
     )

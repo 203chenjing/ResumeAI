@@ -21,7 +21,7 @@
 | **岗位可信度 + 匹配评分** | JD 真实性评分防假招聘；五维匹配 + 差距分析，知道差在哪、先改什么 |
 | **GUI + LUI 双模交互** | 列表点选为主路径，对话微调为辅；助手可驱动左侧预览与建议列表同步更新 |
 | **投递级 PDF** | A4 单页、关键词加粗、版面留白检测、证件照裁剪；支持标准版 / 修改痕迹版 |
-| **校招场景增强** | 岗位发现与对比、飞书表同步、投递看板、拒信模式洞察、模拟面试 |
+| **校招场景增强** | 多源岗位聚合（GitHub 校招库 / 企业 ATS / 高校就业网）、岗位对比、投递看板、拒信模式洞察、模拟面试 |
 | **工程可验证** | 后端 **102+** 单元测试，CI 自动跑 pytest + 冒烟 + 前端构建 |
 
 ### 和「只聊天改简历」的差异
@@ -47,7 +47,7 @@ ResumeAI：  知识库积累素材
 - **知识库**：结构化编辑 + 整理助手（导入、补全、核对待填项）
 - **从知识库生成简历**：按当前岗位从素材库压缩出一页投递版
 - **导出**：定稿闸门、撤销定稿、版面检查、自动记入投递
-- **岗位**：筛选、对比、找岗助手、求职偏好
+- **岗位**：筛选、对比、求职偏好；**选岗 Copilot**（DeepSeek tool-calling）；**Hub 今日卡**（准备度排序、截止提醒、行为飞轮个性化）
 - **投递追踪**：看板 / 表格、转化漏斗、跟进提醒
 - **求职洞察**：档案、拒信模式、策略建议
 
@@ -184,10 +184,24 @@ cd frontend && npm run build
 
 | 变量 | 说明 |
 |------|------|
-| `DEEPSEEK_API_KEY` | 必填，LLM 调用 |
-| `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 可选，飞书岗位表同步 |
+| `DEEPSEEK_API_KEY` | 必填，LLM 调用与岗位 AI 解析/打标签 |
+| `CRAWL_SCHEDULE_ENABLED` | 可选，设为 `true` 开启每日定时抓取（默认开启） |
 
 勿将 `backend/.env` 提交到 Git。
+
+### 岗位数据源（`backend/crawl_sources.yml`）
+
+> 聚焦**国内岗位（含在华外企）**。海外仓库默认关闭，可按需用 `china_only` 过滤后启用。
+
+| Provider | 说明 | 成本 |
+|---|---|---|
+| `github_joblist` | 国内每日校招仓库（namewyf/Campus2026、0voice 计算机校招汇总），含外企中国分部，自带官方投递链接与内推码；支持「章节标题即公司」的表格结构 | 零 token，无浏览器 |
+| `ats_board` | 在华外企官方 ATS 公开 JSON 接口（Greenhouse / Lever / Ashby），`china_only` 仅保留中国大陆岗位 | 零 token，无浏览器 |
+| `university_html` | 北上广深及重点高校就业网 | HTTP/Playwright |
+| `company_campus` / `job_aggregator` | 企业校招页与聚合站（牛客等） | HTTP/Playwright |
+
+- `github_joblist` / `ats_board` 标记为「可信」来源，跳过严格正文校验；其余来源经 `job_validator` 过滤资讯/活动噪声，必要时由 DeepSeek 做结构化补全与打标签。
+- 想接入更多在华外企：在 `ats_board.sources` 按 `平台 + board slug` 增配即可（`china_only: true` 会自动只保留中国岗位）。
 
 ---
 

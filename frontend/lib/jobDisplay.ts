@@ -5,7 +5,6 @@ const SOURCE_LABELS: Record<string, string> = {
   company_campus: "企业官网",
   university_html: "高校就业网",
   wechat_article: "公众号",
-  feishu_bitable: "飞书秋招表",
 };
 
 export function sourceLabel(job: JobPosting): string {

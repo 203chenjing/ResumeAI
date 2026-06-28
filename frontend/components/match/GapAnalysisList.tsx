@@ -2,9 +2,9 @@ import type { GapItem } from "@/lib/types";
 import { copy } from "@/lib/copy";
 
 const STATUS_LABEL: Record<GapItem["status"], { text: string; className: string }> = {
-  match: { text: copy.match.gapHigh, className: "bg-green-50 text-green-800" },
-  partial: { text: copy.match.gapMid, className: "bg-amber-50 text-amber-800" },
-  missing: { text: copy.match.gapMissing, className: "bg-red-50 text-red-800" },
+  match: { text: copy.match.gapHigh, className: "alert-success" },
+  partial: { text: copy.match.gapMid, className: "alert-warning" },
+  missing: { text: copy.match.gapMissing, className: "alert-error" },
 };
 
 export default function GapAnalysisList({ gaps }: { gaps: GapItem[] }) {

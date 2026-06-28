@@ -16,6 +16,7 @@ from app.routers import (
     chat_agent,
     export,
     finalize,
+    hub,
     insights,
     interview,
     jd,
@@ -48,6 +49,9 @@ app = FastAPI(
     version="1.0.0",
     description="JD 驱动的简历智能修改后端",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url=None,
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
@@ -74,6 +78,7 @@ app.include_router(pending_knowledge.router)
 app.include_router(applications.router)
 app.include_router(session.router)
 app.include_router(jobs.router)
+app.include_router(hub.router)
 app.include_router(career_copilot.router)
 app.include_router(master_resume.router)
 app.include_router(interview.router)
@@ -90,6 +95,6 @@ async def root():
     return {
         "service": "AI 简历修改 API",
         "version": "1.0.0",
-        "docs": "/docs",
         "health": "/health",
+        "docs": "/docs",
     }

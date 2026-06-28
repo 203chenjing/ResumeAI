@@ -145,6 +145,11 @@ export interface JobPosting {
   source_site?: string;
   validation_status?: "ok" | "weak" | "invalid" | "pending";
   validation_issues?: string[];
+  ai_summary?: string;
+  ai_tags?: string[];
+  status?: string;
+  referral_code?: string;
+  legitimacy?: "trusted" | "likely" | "suspect" | "";
 }
 
 export interface JobFeedMeta {
@@ -175,6 +180,7 @@ export interface JobPriorityItem {
   reasons: string[];
   is_new?: boolean;
   jd_url?: string;
+  ai_summary?: string;
 }
 
 export interface JobDigest {
@@ -282,11 +288,77 @@ export interface InterviewPrepPack {
 
 export interface Reminder {
   type: string;
-  app_id: string;
+  app_id?: string;
+  job_id?: string;
   company: string;
   role: string;
   message: string;
   urgency: string;
+  due_at?: string;
+  action?: string;
+}
+
+export interface TodayPick {
+  job_id?: string;
+  company: string;
+  role: string;
+  readiness_score?: number;
+  match_score?: number;
+  deadline?: string;
+  jd_url?: string;
+  referral_code?: string;
+  reasons?: string[];
+  next_action?: string;
+  days_left?: number;
+  message?: string;
+}
+
+export interface TodayBriefing {
+  headline: string;
+  personalization_note?: string;
+  has_resume: boolean;
+  feed_total: number;
+  top_picks: TodayPick[];
+  urgent_deadlines: TodayPick[];
+  digest_headline?: string;
+  generated_at?: string;
+}
+
+export interface AhaSnapshot {
+  headline: string;
+  top_picks: TodayPick[];
+  summary: string;
+}
+
+export interface JobReadiness {
+  readiness_score: number;
+  match_score: number;
+  days_to_deadline?: number | null;
+  reasons: string[];
+  blockers: string[];
+  next_action: string;
+  components?: Record<string, number>;
+}
+
+export interface AtsReadbackResult {
+  ats_score: number;
+  readable: boolean;
+  char_extracted: number;
+  keyword_retention: number;
+  issues: string[];
+  missing_keywords: string[];
+}
+
+export interface BatchTailorItem {
+  job_id: string;
+  company: string;
+  role: string;
+  readiness_score: number;
+  match_score: number;
+  top_gaps: string[];
+  reasons: string[];
+  action_label: string;
+  jd_url?: string;
 }
 
 export interface PatternInsights {

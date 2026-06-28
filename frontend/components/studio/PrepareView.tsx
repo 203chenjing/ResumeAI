@@ -127,6 +127,9 @@ export default function PrepareView() {
       setParsedResume(res.data.parsed);
       setOriginalMarkdown(res.data.markdown);
       setCurrentMarkdown(res.data.markdown);
+      if (res.data.aha?.summary) {
+        pushToast(res.data.aha.summary, "info");
+      }
       pushToast("简历已读取", "success");
     } catch (e) {
       setError((e as Error).message);

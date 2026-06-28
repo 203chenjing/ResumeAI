@@ -5,7 +5,6 @@ import { Camera, Trash2, Upload, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAppStore, type FinalizeStatus } from "@/stores/useAppStore";
 import { copy } from "@/lib/copy";
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ProfilePhotoModule({ sessionId }: { sessionId: string }) {

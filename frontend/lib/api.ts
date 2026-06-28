@@ -1,5 +1,6 @@
 // API 请求封装
-import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth } from "./types";
+import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
+import { getClientId } from "./userMemory";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -23,10 +24,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  async parseResume(file: File) {
+  async parseResume(file: File, client_id?: string) {
+    const cid = client_id || getClientId();
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${API_BASE}/api/parse-resume`, { method: "POST", body: fd });
+    const res = await fetch(
+      `${API_BASE}/api/parse-resume?client_id=${encodeURIComponent(cid)}`,
+      { method: "POST", body: fd }
+    );
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || `解析失败 (${res.status})`);
@@ -36,6 +41,7 @@ export const api = {
       format: string;
       parsed: ParsedResume;
       markdown: string;
+      aha?: AhaSnapshot;
     }>;
   },
 
@@ -437,50 +443,6 @@ export const api = {
     });
   },
 
-  syncFeishuJobs(client_id: string) {
-    return request<
-      ApiResponse<{
-        new_count: number;
-        total: number;
-        report: Array<{
-          provider: string;
-          status: string;
-          fetched?: number;
-          duration_ms?: number;
-          error?: string;
-        }>;
-        quality?: {
-          validated_ok?: number;
-          validated_weak?: number;
-          rejected?: number;
-        };
-        jobs: JobPosting[];
-        digest?: JobDigest;
-      }>
-    >("/api/jobs/sync-feishu", {
-      method: "POST",
-      body: JSON.stringify({ client_id }),
-    });
-  },
-
-  getFeishuJobStatus() {
-    return request<
-      ApiResponse<{
-        configured: boolean;
-        enabled: boolean;
-        job_types_include: string[];
-        source_count: number;
-        sources: Array<{
-          id?: string;
-          name?: string;
-          base_token?: string;
-          table_id?: string;
-          view_id?: string;
-        }>;
-      }>
-    >("/api/jobs/feishu/status");
-  },
-
   dedupeJobFeed(client_id: string) {
     return request<
       ApiResponse<{
@@ -635,6 +597,61 @@ export const api = {
 
   getReminders(client_id: string) {
     return request<ApiResponse<{ reminders: Reminder[] }>>(`/api/reminders/${client_id}`);
+  },
+
+  hub: {
+    getTodayBriefing(client_id: string) {
+      return request<ApiResponse<TodayBriefing>>(`/api/hub/today/${client_id}`);
+    },
+    getAha(client_id: string, resume_md?: string) {
+      const q = resume_md ? `?resume_md=${encodeURIComponent(resume_md.slice(0, 500))}` : "";
+      return request<ApiResponse<AhaSnapshot>>(`/api/hub/aha/${client_id}${q}`);
+    },
+    getReadiness(client_id: string, job_id: string) {
+      return request<ApiResponse<JobReadiness & { explain: { headline: string; reasons: string[] } }>>(
+        `/api/hub/readiness/${client_id}/${job_id}`
+      );
+    },
+    recordBehavior(
+      client_id: string,
+      event_type: string,
+      payload?: { job_id?: string; company?: string; role?: string; meta?: Record<string, unknown> }
+    ) {
+      return request<ApiResponse<{ ok: boolean }>>("/api/hub/behavior/event", {
+        method: "POST",
+        body: JSON.stringify({ client_id, event_type, ...payload }),
+      });
+    },
+    recordFunnel(client_id: string, step: string, meta?: Record<string, unknown>) {
+      return request<ApiResponse<{ ok: boolean }>>("/api/hub/funnel/event", {
+        method: "POST",
+        body: JSON.stringify({ client_id, step, meta }),
+      });
+    },
+    getFunnel(client_id: string, days = 7) {
+      return request<ApiResponse<Record<string, unknown>>>(`/api/hub/funnel/${client_id}?days=${days}`);
+    },
+    batchTailor(client_id: string, job_ids?: string[]) {
+      return request<ApiResponse<{ items: BatchTailorItem[]; job_ids: string[] }>>("/api/hub/batch-tailor", {
+        method: "POST",
+        body: JSON.stringify({ client_id, job_ids: job_ids ?? [] }),
+      });
+    },
+    atsReadback(session_id: string, filename?: string, client_id?: string) {
+      return request<ApiResponse<AtsReadbackResult>>("/api/hub/ats-readback", {
+        method: "POST",
+        body: JSON.stringify({ session_id, filename, client_id: client_id || getClientId() }),
+      });
+    },
+    steerPreferences(
+      client_id: string,
+      body: { boost_companies?: string[]; boost_cities?: string[]; block_companies?: string[] }
+    ) {
+      return request<ApiResponse<Record<string, unknown>>>("/api/hub/behavior/steer", {
+        method: "PUT",
+        body: JSON.stringify({ client_id, ...body }),
+      });
+    },
   },
 
   getPatternInsights(client_id: string) {

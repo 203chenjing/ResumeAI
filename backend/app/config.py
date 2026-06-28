@@ -37,14 +37,8 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.3
     llm_timeout_seconds: int = 60
 
-    # Feishu / Lark（多维表格秋招同步）
-    feishu_app_id: str = ""
-    feishu_app_secret: str = ""
-    feishu_user_access_token: str = ""
-    feishu_api_base: str = "https://open.feishu.cn/open-apis"
-
-    # 定时爬虫（默认关闭，设 CRAWL_SCHEDULE_ENABLED=true 开启）
-    crawl_schedule_enabled: bool = False
+    # 定时爬虫（默认开启，设 CRAWL_SCHEDULE_ENABLED=false 关闭）
+    crawl_schedule_enabled: bool = True
     crawl_schedule_hour: int = 8
     crawl_schedule_minute: int = 0
     crawl_schedule_client_id: str = "default"

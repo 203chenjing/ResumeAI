@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import ToastContainer from "@/components/ui/Toast";
 import SessionBootstrap from "@/components/layout/SessionBootstrap";
 import AppShell from "@/components/layout/AppShell";
-
 import { copy } from "@/lib/copy";
 
 export const metadata: Metadata = {

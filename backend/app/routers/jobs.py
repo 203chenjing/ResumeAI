@@ -205,41 +205,6 @@ async def ingest_wechat(body: IngestWechatBody):
     return ApiResponse(success=True, data=saved)
 
 
-@router.post("/jobs/sync-feishu", response_model=ApiResponse)
-async def post_sync_feishu(body: CrawlBody):
-    """仅同步飞书多维表格中的秋招岗位（需配置 FEISHU_* 环境变量）。"""
-    from app.services.feishu_bitable import FeishuBitableClient, FeishuBitableError
-
-    client = FeishuBitableClient.from_settings()
-    if not client.is_configured():
-        raise HTTPException(
-            400,
-            "未配置飞书：请在 backend/.env 设置 FEISHU_APP_ID + FEISHU_APP_SECRET，"
-            "或 FEISHU_USER_ACCESS_TOKEN",
-        )
-    result = await crawl_all(body.client_id, ["feishu_bitable"])
-    health = record_crawl_run(
-        body.client_id,
-        report=result.get("report") or [],
-        new_count=result.get("new_count", 0),
-        total=result.get("total", 0),
-    )
-    new_ids = [j.get("id") for j in result.get("new_jobs") or [] if j.get("id")]
-    digest = await build_job_digest(body.client_id, new_job_ids=new_ids)
-    return ApiResponse(
-        success=True,
-        data={
-            "new_count": result["new_count"],
-            "total": result["total"],
-            "report": result["report"],
-            "quality": result.get("quality"),
-            "jobs": list_jobs(body.client_id, source="feishu_bitable"),
-            "digest": digest,
-            "crawl_health": health,
-        },
-    )
-
-
 @router.get("/jobs/crawl-health/{client_id}", response_model=ApiResponse)
 async def get_jobs_crawl_health(client_id: str):
     return ApiResponse(success=True, data=get_crawl_health(client_id))
@@ -275,35 +240,6 @@ async def post_rerank(body: RerankBody):
                     "match": r["match"].model_dump(),
                 }
                 for r in ranked
-            ],
-        },
-    )
-
-
-@router.get("/jobs/feishu/status", response_model=ApiResponse)
-async def get_feishu_status():
-    from app.crawlers.crawl_config import get_provider_config
-    from app.services.feishu_bitable import FeishuBitableClient
-
-    client = FeishuBitableClient.from_settings()
-    pconf = get_provider_config("feishu_bitable")
-    sources = pconf.get("sources") or []
-    return ApiResponse(
-        success=True,
-        data={
-            "configured": client.is_configured(),
-            "enabled": pconf.get("enabled", True),
-            "job_types_include": pconf.get("job_types_include") or ["秋招"],
-            "source_count": len(sources),
-            "sources": [
-                {
-                    "id": s.get("id"),
-                    "name": s.get("name"),
-                    "base_token": s.get("base_token"),
-                    "table_id": s.get("table_id"),
-                    "view_id": s.get("view_id"),
-                }
-                for s in sources
             ],
         },
     )

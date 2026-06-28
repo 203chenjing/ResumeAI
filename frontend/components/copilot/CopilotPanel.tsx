@@ -1,6 +1,7 @@
 "use client";
 
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
+import ChatInput from "@/components/ui/ChatInput";
 import { ReactNode, useState } from "react";
 import { copy } from "@/lib/copy";
 
@@ -116,25 +117,14 @@ export default function CopilotPanel({
 
       {footer}
 
-      <div className="shrink-0 p-2 border-t border-[var(--border-subtle)]">
-        <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submit()}
-            placeholder={placeholder || copy.copilot.sendPlaceholder}
-            disabled={streaming}
-            className="flex-1 text-sm px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-base)] outline-none focus:ring-1 focus:ring-[var(--primary)]"
-          />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={streaming || !input.trim()}
-            className="p-2 rounded-lg bg-[var(--primary)] text-white disabled:opacity-50"
-          >
-            <Send size={16} />
-          </button>
-        </div>
+      <div className="shrink-0 p-3 border-t border-[var(--border-subtle)]">
+        <ChatInput
+          value={input}
+          onChange={setInput}
+          onSend={() => submit()}
+          placeholder={placeholder || copy.copilot.sendPlaceholder}
+          streaming={streaming}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import ChatInput from "@/components/ui/ChatInput";
 import { useAppStore } from "@/stores/useAppStore";
 import { api } from "@/lib/api";
 import { buildQuickPrompts, getClientId, loadLocalMemory, saveLocalMemory, UserMemory } from "@/lib/userMemory";
@@ -225,28 +226,13 @@ export default function ChatPanel() {
         </div>
 
         <div className="p-3 border-t border-[var(--border-subtle)]">
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send(input);
-                }
-              }}
-              placeholder={copy.edit.assistantPlaceholder}
-              disabled={streaming}
-              className="flex-1 px-3 py-2 border border-[var(--border-subtle)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-            <button
-              onClick={() => send(input)}
-              disabled={streaming || !input.trim()}
-              className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 disabled:opacity-40"
-            >
-              {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            </button>
-          </div>
+          <ChatInput
+            value={input}
+            onChange={setInput}
+            onSend={send}
+            placeholder={copy.edit.assistantPlaceholder}
+            streaming={streaming}
+          />
         </div>
       </div>
     </>

@@ -112,6 +112,41 @@ class DeepSeekClient:
                     raise
         return {}
 
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        *,
+        tool_choice: str = "auto",
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> dict:
+        """带函数调用的单轮请求，返回完整 assistant message（可能含 tool_calls）。
+
+        调用方负责执行 tool_calls、把结果作为 role=tool 消息追加后再次调用，
+        形成 tool-calling 循环。
+        """
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": tool_choice,
+            "max_tokens": max_tokens or settings.llm_max_tokens,
+            "temperature": temperature if temperature is not None else settings.llm_temperature,
+        }
+        for attempt in range(3):
+            try:
+                data = await self._chat_completion(payload)
+                return data["choices"][0]["message"]
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(1)
+        return {"role": "assistant", "content": ""}
+
     async def chat_text(
         self,
         system: str,

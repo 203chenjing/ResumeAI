@@ -7,7 +7,8 @@ import Header from "@/components/layout/Header";
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { InterviewPrepPack } from "@/lib/types";
-import { BookOpen, Loader2, MessageSquare, Send } from "lucide-react";
+import { BookOpen, Loader2, MessageSquare } from "lucide-react";
+import ChatInput from "@/components/ui/ChatInput";
 import { copy } from "@/lib/copy";
 import { ROUTES } from "@/lib/navigation";
 
@@ -193,7 +194,11 @@ export default function InterviewPage() {
                 {chatLog.map((m, i) => (
                   <div
                     key={i}
-                    className={`p-2 rounded ${m.role === "user" ? "bg-blue-100 ml-8" : "bg-white mr-8"}`}
+                    className={`p-2 rounded-[var(--radius-sm)] ${
+                      m.role === "user"
+                        ? "bg-[var(--primary-muted)] text-[var(--text-primary)] ml-8"
+                        : "bg-[var(--surface-base)] text-[var(--text-secondary)] mr-8"
+                    }`}
                   >
                     {m.content}
                   </div>
@@ -202,26 +207,16 @@ export default function InterviewPage() {
               </div>
 
               {score !== null && (
-                <div className="text-xs text-green-700 mb-2">STAR 评分：{score}/100</div>
+                <div className="text-xs text-[var(--semantic-success)] mb-2">STAR 评分：{score}/100</div>
               )}
 
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                  placeholder={question || "输入你的回答…"}
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && submitAnswer()}
-                />
-                <button
-                  type="button"
-                  onClick={submitAnswer}
-                  disabled={streaming || !answer.trim()}
-                  className="btn-primary px-4 py-2"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
+              <ChatInput
+                value={answer}
+                onChange={setAnswer}
+                onSend={submitAnswer}
+                placeholder={question || "输入你的回答…"}
+                streaming={streaming}
+              />
             </section>
           </div>
         )}

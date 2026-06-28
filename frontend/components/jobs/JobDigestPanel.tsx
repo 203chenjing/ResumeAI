@@ -5,8 +5,8 @@ import { Loader2, Sparkles } from "lucide-react";
 import { copy } from "@/lib/copy";
 
 const PRIORITY_STYLE: Record<string, string> = {
-  P0: "bg-red-50 text-red-800 border-red-200",
-  P1: "bg-amber-50 text-amber-900 border-amber-200",
+  P0: "bg-[var(--semantic-danger-muted)] text-[var(--semantic-danger)] border-[var(--semantic-danger-border)]",
+  P1: "bg-[var(--semantic-warning-muted)] text-[var(--semantic-warning)] border-[var(--semantic-warning-border)]",
   P2: "bg-[var(--surface-base)] text-[var(--text-secondary)] border-[var(--border-subtle)]",
 };
 
@@ -89,10 +89,13 @@ export default function JobDigestPanel({
                   {PRIORITY_LABEL[item.priority] || item.priority}
                 </span>
                 {item.is_new && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-800 rounded">新</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-[var(--semantic-success-muted)] text-[var(--semantic-success)] rounded-[var(--radius-sm)]">新</span>
                 )}
                 <span className="font-medium text-[var(--text-primary)]">{item.company}</span>
                 <span className="text-[var(--primary)]">{item.role}</span>
+                {item.ai_summary && (
+                  <span className="w-full text-xs text-[var(--text-secondary)]">{item.ai_summary}</span>
+                )}
                 <span className="text-xs text-[var(--text-secondary)]">{item.reasons?.join(" · ")}</span>
                 {onApplyJob && (
                   <button

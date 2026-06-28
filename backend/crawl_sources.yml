@@ -13,12 +13,68 @@ compliance:
   rate_limit_rps: 0.4
   public_pages_only: true
   user_agent: "ResumeAI-Crawler/1.0 (campus-job-aggregator; contact=local)"
+  # 公开文章/高校就业列表：robots 常误拦，允许绕过（仍限速、仅公开页）
+  robots_bypass_domains:
+    - mp.weixin.qq.com
+    - weixin.qq.com
   blocked_domains:
     - zhipin.com
     - liepin.com
     - 51job.com
 
 providers:
+  # ---------------------------------------------------------------------------
+  # S1 GitHub 每日校招仓库（零 token / 零 Playwright / 高时效 / 公开合规）
+  # 仓库为社区维护、MIT、专为消费；自带投递链接与内推码。
+  # ---------------------------------------------------------------------------
+  # 聚焦国内岗位（含在华外企）；海外仓库默认关闭，需要时再开。
+  github_joblist:
+    enabled: true
+    china_only: false  # 国内仓库本身已是中国岗位；海外源单独用 china_only 过滤
+    max_items: 300
+    sources:
+      - id: campus2026-cn
+        name: Campus2026 互联网校招&实习（含外企中国分部）
+        raw_url: https://raw.githubusercontent.com/namewyf/Campus2026/main/README.md
+        channel: GitHub校招仓库
+        tags: [校招, 实习, 中文, GitHub]
+      - id: 0voice-spring
+        name: 0voice 计算机校招汇总（含外企/国企）
+        raw_url: https://raw.githubusercontent.com/0voice/2026-Computer-Spring-Recruitment-Job-Compilation/main/README.md
+        channel: GitHub校招仓库
+        tags: [校招, 计算机, 中文, GitHub]
+      # 海外仓库：默认关闭。若想看在华岗位可设 china_only: true 过滤后开启。
+      - id: speedyapply-intl
+        name: speedyapply 国际校招（仅保留中国地点）
+        raw_url: https://raw.githubusercontent.com/speedyapply/2026-SWE-College-Jobs/main/INTERN_INTL.md
+        channel: GitHub校招仓库
+        tags: [校招, 海外, GitHub]
+        china_only: true
+        enabled: false
+
+  # ---------------------------------------------------------------------------
+  # S2 官方 ATS JSON API（Greenhouse / Lever / Ashby）零 token
+  # 面向「在华外企」：china_only 仅保留中国大陆地点的岗位。
+  # board 为公司在对应平台的 slug；确认 slug 后再启用对应公司。
+  # ---------------------------------------------------------------------------
+  ats_board:
+    enabled: true
+    campus_only: true
+    china_only: true
+    max_items_per_board: 60
+    sources:
+      # 以下为模板示例，slug 需逐一核对后启用（在华岗位才会保留）。
+      - name: Stripe
+        platform: greenhouse
+        board: stripe
+      - name: Databricks
+        platform: greenhouse
+        board: databricks
+      - name: Airtable
+        platform: lever
+        board: airtable
+        enabled: false
+
   # ---------------------------------------------------------------------------
   # L1 高校就业网（北上广深 / 南京 / 杭州）
   # ---------------------------------------------------------------------------
@@ -184,6 +240,7 @@ providers:
         channel: 高校就业网
         city: 武汉
         use_playwright: true
+        ignore_robots: true
         wait_ms: 3500
         max_items: 35
         tags: [校招, 武汉, 武大, L1]
@@ -195,6 +252,7 @@ providers:
         channel: 高校就业网
         city: 武汉
         use_playwright: true
+        ignore_robots: true
         wait_ms: 3500
         max_items: 35
         tags: [校招, 武汉, 华科, L1]
@@ -356,6 +414,50 @@ providers:
         wait_ms: 3000
         max_items: 30
         tags: [校招, 杭州, 浙工大, L1]
+
+      - id: cufe-career
+        name: 中央财经大学
+        list_url: https://scc.cufe.edu.cn/frontpage/cufe/html/recruitmentinfoList.html
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 北京, 央财, L1]
+
+      - id: cueb-career
+        name: 首都经济贸易大学
+        list_url: https://job.cueb.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 北京
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 北京, 首经贸, L1]
+
+      - id: ecnu-career
+        name: 华东师范大学
+        list_url: https://career.ecnu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 上海
+        use_playwright: true
+        wait_ms: 3500
+        max_items: 35
+        tags: [校招, 上海, 华师大, L1]
+
+      - id: scnu-career
+        name: 华南师范大学
+        list_url: https://career.scnu.edu.cn/
+        parser: generic_list
+        channel: 高校就业网
+        city: 广州
+        use_playwright: true
+        wait_ms: 3000
+        max_items: 30
+        tags: [校招, 广州, 华南师大, L1]
 
   # ---------------------------------------------------------------------------
   # L2 企业校招（大厂 + 中小厂）
@@ -534,6 +636,7 @@ providers:
         channel: 企业校招
         city: 上海
         use_playwright: true
+        ignore_robots: true
         wait_ms: 5000
         max_items: 25
         tags: [中小厂, 校招, 上海]
@@ -577,7 +680,22 @@ providers:
         channel: 求职聚合
         use_playwright: true
         wait_ms: 4500
-        max_items: 60
+        enrich_detail: true
+        detail_wait_ms: 2000
+        max_items: 80
+        tags: [聚合, 校招, 全国, 牛客]
+
+      - id: nowcoder-enterprise-hot
+        name: 牛客网热门校招
+        enabled: false  # 页面结构与 schedule 不兼容，ok 率 <5%，已下线
+        list_url: https://www.nowcoder.com/jobs/school/jobs
+        parser: nowcoder_schedule
+        channel: 求职聚合
+        use_playwright: true
+        wait_ms: 4000
+        enrich_detail: true
+        detail_wait_ms: 1500
+        max_items: 50
         tags: [聚合, 校招, 全国, 牛客]
 
       - id: yjs-yingjie
@@ -615,6 +733,7 @@ providers:
 
       - id: ncss-platform
         name: 国家24365就业服务平台
+        enabled: false  # generic_list 噪声高（政策资讯），暂下线
         list_url: https://www.ncss.cn/
         parser: generic_list
         channel: 求职聚合
@@ -625,6 +744,7 @@ providers:
 
       - id: bjbys-platform
         name: 北京高校就业创业信息网
+        enabled: false  # generic_list 易抓活动通知，暂下线；优质岗位已由牛客覆盖
         list_url: https://www.bjbys.net.cn/
         parser: generic_list
         channel: 区域就业平台
@@ -639,7 +759,7 @@ providers:
   # L4 公众号文章（仅公开 mp.weixin.qq.com 文章 URL）
   # ---------------------------------------------------------------------------
   wechat_article:
-    enabled: true
+    enabled: false  # 自动发现噪声大；用户可在岗位页手动粘贴公众号链接 ingest
     # 知名校招公众号文章：从公开汇总页自动发现 + 手动订阅
   # 说明：不爬取微信后台；仅解析用户/汇总页中已公开分享的文章链接
     subscribed_urls: []
@@ -652,31 +772,3 @@ providers:
         url: https://www.nowcoder.com/feed/main/detail/17aafd278cdc43a18a6ad2137564b518
         use_playwright: true
         wait_ms: 3000
-
-  # ---------------------------------------------------------------------------
-  # L5 飞书多维表格（鲨鲨 26 届秋招表，仅导入秋招）
-  # 需在 backend/.env 配置 FEISHU_APP_ID + FEISHU_APP_SECRET
-  # 或 FEISHU_USER_ACCESS_TOKEN（个人访问令牌，需 bitable:app:readonly）
-  # ---------------------------------------------------------------------------
-  feishu_bitable:
-    enabled: true
-    job_types_include: [秋招]
-    job_types_exclude: [实习, 春招, 暑期, 日常实习]
-    sources:
-      - id: shasha-26-qiuzhao
-        name: 鲨鲨26届秋招网申表
-        base_token: SAHbbOc68aH0sPscYu7cbKZjnnr
-        table_id: tblnJnFOgllO4FYe
-        view_id: vewh2m8QIt
-        channel: 飞书秋招表
-        tags: [秋招, 26届, 飞书]
-        field_map:
-          company: [公司名称, 公司, 企业名称, 公司名]
-          role: [招聘岗位, 岗位, 职位, 职位名称]
-          job_type: [招聘类型, 类型, 批次, 招聘批次]
-          location: [工作地点, 城市, 地点, 工作城市]
-          deadline: [截止时间, 网申截止, 投递截止, 截止日期]
-          jd_url: [投递链接, 网申链接, 官网链接, 链接, 投递地址]
-          published_at: [更新时间, 收录时间, 发布日期, 日期]
-          industry: [行业, 公司行业]
-          notes: [备注, 说明, 内推码]

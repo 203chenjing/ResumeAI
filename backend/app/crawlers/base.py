@@ -27,6 +27,8 @@ class JobPosting:
     published_at: str = ""
     validation_status: str = "pending"
     validation_issues: list[str] = field(default_factory=list)
+    referral_code: str = ""  # 内推码（GitHub 仓库等来源自带）
+    legitimacy: str = ""  # 真实性分级：trusted | likely | suspect
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)

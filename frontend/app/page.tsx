@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Briefcase, BookOpen, ChevronRight } from "lucide-react";
 import ContinueCard from "@/components/hub/ContinueCard";
+import TodayBriefingCard from "@/components/hub/TodayBriefingCard";
 import TodoList from "@/components/hub/TodoList";
 import GlanceStats from "@/components/hub/GlanceStats";
 import { EMPTY_STUDIO_META, getLastStudioMeta } from "@/lib/sessionBootstrap";
@@ -30,6 +31,8 @@ export default function HubPage() {
       </header>
 
       <ContinueCard meta={meta} />
+
+      <TodayBriefingCard />
 
       <div className="grid md:grid-cols-5 gap-4">
         <div className="md:col-span-3">

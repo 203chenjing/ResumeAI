@@ -147,6 +147,22 @@ export default function ExportView() {
       URL.revokeObjectURL(url);
       pushToast(copy.edit.pdfDownloading, "success");
 
+      api.hub.recordFunnel(getClientId(), "export_pdf", { session_id: sessionId }).catch(() => {});
+
+      try {
+        const ats = await api.hub.atsReadback(sessionId, filename);
+        if (ats.success && ats.data) {
+          const score = ats.data.ats_score;
+          if (ats.data.readable) {
+            pushToast(`ATS 可读性 ${score} 分，机器可较好解析`, "success");
+          } else {
+            pushToast(`ATS 可读性偏低（${score} 分）：${ats.data.issues[0] || "请检查排版"}`, "warning");
+          }
+        }
+      } catch {
+        /* PDF 可能尚未落盘到服务端路径，忽略 */
+      }
+
       if (jdAnalysis) {
         const created = await api.createApplication({
           client_id: getClientId(),
@@ -230,7 +246,7 @@ export default function ExportView() {
                 {layoutCheck.bottom_gap_mm != null && (
                   <span className="ml-2">
                     {copy.export.bottomGap(layoutCheck.bottom_gap_mm)}
-                    {layoutCheck.bottom_gap_mm > 20 ? copy.export.bottomGapLarge : copy.export.bottomGapOk}
+                   {layoutCheck.bottom_gap_mm > 20 ? copy.export.bottomGapLarge : copy.export.bottomGapOk}
                   </span>
                 )}
                 {layoutCheck.char_count != null && (

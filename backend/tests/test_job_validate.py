@@ -99,6 +99,36 @@ def test_normalize_nowcoder_splits_company_role():
     assert job["job_type"] == "实习"
 
 
+def test_validate_rejects_bjbys_news():
+    job = validate_job(
+        {
+            "company": "北京大学",
+            "role": "关于公布第五届「京彩大创」大学生创新创业大赛名单的通知",
+            "jd_text": "关于公布第五届「京彩大创」大学生创新创业大赛名单的通知",
+            "jd_url": "https://www.bjbys.net.cn/news/1",
+            "source": "job_aggregator",
+            "channel": "区域就业平台",
+        }
+    )
+    assert job["validation_status"] == "invalid"
+
+
+def test_validate_rejects_university_list_page():
+    job = validate_job(
+        {
+            "company": "齐同华审（广州）管理咨询有限公司",
+            "role": "2026年龙岩学院公开招聘高层次人才方案",
+            "jd_text": "2026年龙岩学院公开招聘高层次人才方案",
+            "jd_url": "https://career.cic.tsinghua.edu.cn/xsglxt/f/jyxt/anony/xxfb",
+            "source": "university_html",
+            "city": "北京",
+            "tags": ["发布方:清华大学"],
+        }
+    )
+    assert job["validation_status"] == "invalid"
+    assert "列表页" in " ".join(job["validation_issues"])
+
+
 def test_build_tags_dedupes():
     tags = build_tags(
         {
