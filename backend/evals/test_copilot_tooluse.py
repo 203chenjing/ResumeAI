@@ -1,7 +1,7 @@
 """选岗 Copilot 工具调用正确性 live 评测（deepeval ToolCorrectnessMetric，确定性、零 token）。
 
 运行条件（缺一即整文件跳过）：
-- 安装 deepeval（pip install -r requirements-dev.txt）
+- 安装 deepeval（`pip install -r requirements-evals.txt`）
 - 设置 DEEPSEEK_API_KEY（评测会真实调用 DeepSeek 让模型决定调哪些工具）
 
 运行方式：

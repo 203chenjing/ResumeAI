@@ -1,0 +1,4 @@
+# 选岗 Copilot live 评测（可选，不进入 CI）
+-r requirements-dev.txt
+deepeval==4.0.7
+google-genai>=1.0.0

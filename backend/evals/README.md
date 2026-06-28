@@ -16,7 +16,7 @@
 
 ```bash
 cd backend
-pip install -r requirements-dev.txt          # 含 deepeval
+pip install -r requirements-evals.txt          # 含 deepeval + google-genai
 
 # 1) 离线 plumbing（任何时候都能跑，无需 key）
 python -m pytest tests/test_copilot_eval_offline.py -v
