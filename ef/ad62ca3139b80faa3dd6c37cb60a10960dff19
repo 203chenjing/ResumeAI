@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_29c1e716207cc6::t_d69b6f17955711 12-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.24-trip",
+  "base_commit_sha": "efad62ca3139b80faa3dd6c37cb60a10960dff19",
+  "prompts": {},
+  "sessions": {
+    "s_29c1e716207cc6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b5ef8272-92e6-4d82-9973-9eeee22630a0",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    }
+  }
+}
