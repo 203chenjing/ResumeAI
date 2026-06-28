@@ -8,11 +8,13 @@ from typing import AsyncGenerator
 from app.models.schemas import ChatMessage, JDAnalysis, Suggestion
 from app.prompts.chat_system import build_chat_messages
 from app.services.llm_client import client
+from app.services.suggestion_engine import _filter_noop_suggestions
 
 logger = logging.getLogger(__name__)
 
 CHAT_REPLY_RE = re.compile(r"\[CHAT_REPLY\](.*?)\[/CHAT_REPLY\]", re.DOTALL)
 NEW_SUG_RE = re.compile(r"\[NEW_SUGGESTIONS\](.*?)\[/NEW_SUGGESTIONS\]", re.DOTALL)
+CLAIMS_SUGGESTION_RE = re.compile(r"已(?:生成|更新|新增|添加).{0,12}建议|已生成\s*\d+\s*条")
 
 
 def _parse_suggestions_json(block: str) -> list[dict]:
@@ -144,8 +146,14 @@ async def stream_chat(
             if new_suggestions:
                 logger.info("Recovered %d suggestions via fallback parse", len(new_suggestions))
 
-    if not new_suggestions and reply_text and re.search(r"已生成\s*\d+\s*条", reply_text):
-        logger.warning("Reply claims new suggestions but NEW_SUGGESTIONS block empty or invalid")
+    before_filter = len(new_suggestions)
+    new_suggestions = _filter_noop_suggestions(new_suggestions)
+    if len(new_suggestions) < before_filter:
+        logger.info("Dropped %d noop chat suggestions", before_filter - len(new_suggestions))
+
+    if not new_suggestions and reply_text and CLAIMS_SUGGESTION_RE.search(reply_text):
+        logger.warning("Reply claims new suggestions but NEW_SUGGESTIONS block empty, invalid, or filtered")
+        reply_text = "我没有成功生成可处理的新建议，请再明确要替换的原文和目标表述。"
 
     yield {
         "type": "done",

@@ -59,13 +59,19 @@ async def edit_chat_agent(payload: EditChatRequest):
                 if etype == "done":
                     full_reply = event.get("reply") or full_reply
                     new_sugs = event.get("new_suggestions", [])
+                    written_sugs = []
                     if new_sugs:
-                        upsert_suggestions(sess, new_sugs)
-                        mark_finalize_stale(sess)
+                        written_sugs = [s.model_dump() for s in upsert_suggestions(sess, new_sugs)]
+                        if written_sugs:
+                            mark_finalize_stale(sess)
+                        else:
+                            full_reply = "我没有成功生成可处理的新建议，请再明确要替换的原文和目标表述。"
+                            event["reply"] = full_reply
+                    event["new_suggestions"] = written_sugs
                     # 始终以服务端最新会话为准，避免 new_suggestions 与 session 不同步
                     event = {**event, **build_session_payload(sess)}
-                    if new_sugs:
-                        patch = build_ui_patch_for_suggestions(new_sugs)
+                    if written_sugs:
+                        patch = build_ui_patch_for_suggestions(written_sugs)
                         if patch:
                             event["ui_patch"] = patch
                     elif not event.get("ui_patch"):

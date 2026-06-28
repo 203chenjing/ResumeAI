@@ -722,39 +722,6 @@ providers:
         max_items: 50
         tags: [聚合, 校招, 全国, 牛客]
 
-      - id: yjs-yingjie
-        name: 应届生求职网-应届专版
-        list_url: https://s.yingjiesheng.com/h_%E5%BA%94%E5%B1%8A
-        parser: yingjiesheng_list
-        channel: 求职聚合
-        use_playwright: true
-        ignore_robots: true
-        wait_ms: 3500
-        max_items: 50
-        tags: [聚合, 校招, 全国, 应届生求职网]
-
-      - id: yjs-internet
-        name: 应届生求职网-互联网
-        list_url: http://s.yingjiesheng.com/h_%E7%9F%A5%E5%90%8D%E4%BA%92%E8%81%94%E7%BD%91%E4%B8%8A%E5%B8%82%E5%85%AC%E5%8F%B8
-        parser: yingjiesheng_list
-        channel: 求职聚合
-        use_playwright: true
-        ignore_robots: true
-        wait_ms: 3500
-        max_items: 50
-        tags: [聚合, 校招, 互联网, 应届生求职网]
-
-      - id: yjs-state-owned
-        name: 应届生求职网-央企
-        list_url: http://s.yingjiesheng.com/h_%E5%A4%AE%E4%BC%81
-        parser: yingjiesheng_list
-        channel: 求职聚合
-        use_playwright: true
-        ignore_robots: true
-        wait_ms: 3500
-        max_items: 40
-        tags: [聚合, 校招, 央企, 应届生求职网]
-
       - id: ncss-platform
         name: 国家24365就业服务平台
         enabled: false  # generic_list 噪声高（政策资讯），暂下线

@@ -65,6 +65,8 @@ def _after_action_reply(action: str, result: dict) -> str:
     if not result.get("ok"):
         return result.get("error") or result.get("message") or "操作未完成"
     if action == "review_suggestions":
+        if result.get("skipped") or (result.get("accepted", 0) + result.get("rejected", 0) == 0):
+            return result.get("reason") or "当前没有待处理建议。"
         return f"已处理建议：接受 {result.get('accepted', 0)} 条，拒绝 {result.get('rejected', 0)} 条。"
     if action == "finalize_resume":
         return "定稿成功，可在左侧查看定稿预览，或说「导出」下载 PDF。"

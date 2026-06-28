@@ -1,4 +1,4 @@
-"""公开求职聚合站 Provider：牛客、应届生求职网、24365、北京高校平台。"""
+"""公开求职聚合站 Provider：牛客、24365、北京高校平台。"""
 from __future__ import annotations
 
 import logging

@@ -1,6 +1,7 @@
 """修改建议生成与调整服务。"""
 import json
 import logging
+import re
 import uuid
 
 from app.models.schemas import JDAnalysis, MatchResult, Suggestion
@@ -10,6 +11,32 @@ from app.services.llm_client import client
 from app.services.resume_density import assess_density
 
 logger = logging.getLogger(__name__)
+
+
+_NOOP_REASON_RE = re.compile(
+    r"无需(?:再)?修改|无须(?:再)?修改|不需要修改|不用(?:再)?改|无需改动|不用改动"
+)
+
+
+def _normalize_suggestion_text(text: str) -> str:
+    return re.sub(r"\s+", "", text or "").strip("。；;，,、. ")
+
+
+def _is_noop_suggestion(suggestion: Suggestion) -> bool:
+    """过滤模型误把“无需修改”当成待处理建议的 no-op 条目。"""
+    original = _normalize_suggestion_text(suggestion.original_text)
+    suggested = _normalize_suggestion_text(suggestion.suggested_text)
+    return (bool(original) and original == suggested) or bool(_NOOP_REASON_RE.search(suggestion.reason or ""))
+
+
+def _filter_noop_suggestions(suggestions: list[Suggestion]) -> list[Suggestion]:
+    filtered: list[Suggestion] = []
+    for s in suggestions:
+        if _is_noop_suggestion(s):
+            logger.info("Drop noop suggestion: %s", s.id)
+            continue
+        filtered.append(s)
+    return filtered
 
 
 def _filter_suggestions_by_density(suggestions: list[Suggestion], resume_md: str) -> list[Suggestion]:
@@ -67,8 +94,9 @@ async def generate_suggestions(
         except Exception as e:
             logger.warning(f"Skip invalid suggestion: {e}, item={item}")
 
+    suggestions = _filter_noop_suggestions(suggestions)
     suggestions = _filter_suggestions_by_density(suggestions, resume_md)
-    summary = data.get("summary", _compute_summary(suggestions))
+    summary = _compute_summary(suggestions)
     return suggestions, summary
 
 

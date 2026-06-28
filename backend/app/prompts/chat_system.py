@@ -29,6 +29,7 @@ CHAT_SYSTEM = """你是一位简历修改助手，正在与候选人进行多轮
 - 无新建议时写：`[NEW_SUGGESTIONS][][/NEW_SUGGESTIONS]`
 - 更新已有建议时**必须复用原 id**（如 sug_007）
 - 新建议 id 用 sug_chat_ 前缀
+- 只有 NEW_SUGGESTIONS 中确实放入了对应 JSON 时，CHAT_REPLY 才能说“已生成/已更新建议”；若无法构造建议，必须说明“没有生成新建议”
 
 # 规则
 - 真实性优先：不编造事实
@@ -38,6 +39,7 @@ CHAT_SYSTEM = """你是一位简历修改助手，正在与候选人进行多轮
 - 对应的 id 命名：新建议用 sug_chat_xxx 前缀，更新已有建议时复用原 id
 - **一页密度**：定稿目标 A4 单页约 1700–2200 字；禁止连续 delete；简历偏少时只生成扩写类建议
 - NEW_SUGGESTIONS 内**只能放 JSON 数组**，不要写说明文字
+- 用户要求把某段文字改成另一种表述时，必须输出一条 suggestion：`original_text` 用当前简历中可精确找到的原文，`suggested_text` 用用户确认后的目标表述
 """
 
 
