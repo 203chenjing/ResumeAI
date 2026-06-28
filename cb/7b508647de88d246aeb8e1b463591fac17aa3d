@@ -1,0 +1,83 @@
+backend/app/main.py
+  s_29c1e716207cc6::t_5cc78b41a8fd19 52-54
+  s_53ab41a4303e4d::t_fde6696debe595 19
+  s_53ab41a4303e4d::t_42d350dd27aa7a 81
+  s_29c1e716207cc6::t_51924b49c5a20d 99
+backend/app/services/behavior_signals.py
+  s_53ab41a4303e4d::t_6121282a09ded0 1-169
+backend/app/services/ats_readback.py
+  s_53ab41a4303e4d::t_c7e8c9a9780100 1-63
+backend/app/routers/resume.py
+  s_53ab41a4303e4d::t_36cbc9132d72af 43
+  s_53ab41a4303e4d::t_81f395df02e999 41-42,44,52
+  s_53ab41a4303e4d::t_f7625381f9162d 3
+  s_53ab41a4303e4d::t_1f026352e6648c 16-19
+frontend/app/page.tsx
+  s_53ab41a4303e4d::t_b78fb153c2bd21 7
+  s_53ab41a4303e4d::t_c7e22dd6f2a336 35-36
+frontend/components/studio/PrepareView.tsx
+  s_53ab41a4303e4d::t_8ee198ba0d0fc6 130-132
+backend/app/services/batch_tailor.py
+  s_53ab41a4303e4d::t_529fc6fc5a7e1b 1-70
+frontend/components/studio/ExportView.tsx
+  s_53ab41a4303e4d::t_61729b1e4a74b7 150-165
+docs/product-amazing-v3.md
+  s_53ab41a4303e4d::t_7793446c36d1f8 1-73
+backend/app/routers/hub.py
+  s_53ab41a4303e4d::t_33c11b8afd40e2 57
+  s_53ab41a4303e4d::t_2089c47bb105ba 191
+  s_53ab41a4303e4d::t_378f7731ec5bf3 1-56,58-190,192
+backend/tests/test_job_readiness.py
+  s_53ab41a4303e4d::t_76b3c25a1a0627 1-42
+frontend/components/edit/ResumePreview.tsx
+  s_29c1e716207cc6::t_02eaf398736395 12
+backend/evals/README.md
+  s_53ab41a4303e4d::t_14f9df0c2545a1 1-44
+backend/app/services/today_briefing.py
+  s_53ab41a4303e4d::t_18c0be4aad018a 1-173
+backend/app/services/job_readiness.py
+  s_53ab41a4303e4d::t_8379afc2e26865 1-186
+frontend/lib/copy.ts
+  s_53ab41a4303e4d::t_1c2d276ad30c43 46-53
+frontend/lib/types.ts
+  s_53ab41a4303e4d::t_ed46d7b2f74471 291-292,297-361
+README.md
+  s_53ab41a4303e4d::t_d924a30c064950 50
+frontend/components/jobs/JobsView.tsx
+  s_53ab41a4303e4d::t_aa34a4bbd97305 195-202
+.gitignore
+  s_29c1e716207cc6::t_14167f4956ba72 18
+backend/app/services/funnel_metrics.py
+  s_53ab41a4303e4d::t_bc04950d959b18 1-80
+backend/app/services/match_engine.py
+  s_53ab41a4303e4d::t_ce2fa771e1c590 231,234-236,241-246,256,258-259
+frontend/components/hub/TodayBriefingCard.tsx
+  s_53ab41a4303e4d::t_26b3cba7d9783b 1-136
+backend/app/services/followup_reminders.py
+  s_53ab41a4303e4d::t_7f1123b75d7f78 56-74
+  s_53ab41a4303e4d::t_acaa642b33abaf 1,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.18-trip",
+  "base_commit_sha": "cb7b508647de88d246aeb8e1b463591fac17aa3d",
+  "prompts": {},
+  "sessions": {
+    "s_29c1e716207cc6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b5ef8272-92e6-4d82-9973-9eeee22630a0",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    },
+    "s_53ab41a4303e4d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6049b97c-4c85-4303-8c6e-81a281d9c42e",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    }
+  }
+}
