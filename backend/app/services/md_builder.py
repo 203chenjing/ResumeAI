@@ -1,5 +1,11 @@
 """简历 Markdown 重建：从 ParsedResume 生成符合 SKILL.md 排版规范的 Markdown。"""
 from app.models.schemas import ParsedResume
+from app.services.resume_list_format import ensure_experience_item_format
+
+
+def _format_experience_item(index: int, item: str) -> str:
+    line = ensure_experience_item_format(f"{index}. {item}", reference=f"{index}. {item}")
+    return line
 
 
 def build_resume_markdown(parsed: ParsedResume, photo_path: str = "") -> str:
@@ -67,7 +73,7 @@ def build_resume_markdown(parsed: ParsedResume, photo_path: str = "") -> str:
         lines.append(header)
         lines.append("")
         for i, item in enumerate(exp.items, 1):
-            lines.append(f"{i}. {item}")
+            lines.append(_format_experience_item(i, item))
         lines.append("")
 
     # Separator + Skills

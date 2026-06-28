@@ -64,6 +64,8 @@ async def execute_tool(
         return await _tool_analyze_match(sess)
     if action == "generate_suggestions":
         return await _tool_generate_suggestions(sess)
+    if action == "propose_targeted_edits":
+        return await _tool_propose_targeted_edits(sess, action_input, client_id)
     if action == "review_suggestions":
         return await _tool_review_suggestions(sess, action_input.get("policy", "accept_safe"))
     if action == "finalize_resume":
@@ -199,6 +201,39 @@ async def _tool_analyze_match(sess: Session) -> dict:
     sess.status = "matched"
     store.update(sess)
     return {"ok": True, "overall_score": match.overall_score}
+
+
+async def _tool_propose_targeted_edits(
+    sess: Session, action_input: dict, client_id: str = "default"
+) -> dict:
+    from app.services.targeted_edit import run_targeted_edit
+
+    message = (action_input.get("user_message") or action_input.get("message") or "").strip()
+    if not message:
+        return {"ok": False, "error": "缺少 user_message"}
+    result = await run_targeted_edit(
+        message,
+        sess,
+        ui_context=action_input.get("ui_context"),
+    )
+    if result.get("action") == "targeted_edit" and result.get("suggestions"):
+        from app.services.session_sync import upsert_suggestions
+        from app.routers.finalize import mark_finalize_stale
+
+        written = upsert_suggestions(sess, [s.model_dump() for s in result["suggestions"]])
+        mark_finalize_stale(sess)
+        store.update(sess)
+        lines = [t.get("line") for t in (result.get("plan") or {}).get("targets", [])]
+        return {
+            "ok": True,
+            "count": len(written),
+            "target_lines": lines,
+            "summary": result.get("reply"),
+            "suggestion_ids": [s.id for s in written],
+        }
+    if result.get("action") == "clarify":
+        return {"ok": True, "skipped": True, "reason": result.get("reply")}
+    return {"ok": True, "skipped": True, "reason": result.get("reply") or "无需逐条改稿"}
 
 
 async def _tool_generate_suggestions(sess: Session) -> dict:

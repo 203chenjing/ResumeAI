@@ -8,7 +8,7 @@ JD_ANALYSIS_SYSTEM = """你是一位资深 HR 与求职顾问。任务：解析�
 {
   "role": "岗位名称",
   "company": "公司名称（若 JD 未提及，留空字符串）",
-  "archetype": "岗位原型（如：AI产品经理/数据分析/前端开发/后端开发/算法工程师/运营/UI设计/项目管理/销售/HR/职能/其他）",
+  "archetype": "岗位原型（如：AI产品经理/软件产品经理/数据分析/前端开发/后端开发/算法工程师/运营/UI设计/项目管理/PMO/销售/HR/职能/其他）",
   "core_requirements": ["核心要求1", "核心要求2"],
   "preferred_requirements": ["加分项1", "加分项2"],
   "keywords": ["关键词1", "关键词2"],
@@ -25,7 +25,7 @@ JD_ANALYSIS_SYSTEM = """你是一位资深 HR 与求职顾问。任务：解析�
 ```
 
 # 提取规则
-- archetype: 单选一个最贴近的标签；产品+AI优先归 AI产品经理
+- archetype: 单选一个最贴近的标签；产品+AI优先归 AI产品经理；偏排期/交付/PMO归 项目管理
 - core_requirements: JD 中明确写明「必须/要求/职责」的硬性条件
 - preferred_requirements: 「加分项/优先/有...经验者优先」的软性条件
 - keywords: 高频出现的技术词、工具名、产品名（如 Python/SQL/RAG/A-B 测试）

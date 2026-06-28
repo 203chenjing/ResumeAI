@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { useEffect } from "react";
 import { prepareResumePreviewMarkdown, stripPhotoMarkdown } from "@/lib/resumePreviewTransform";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -20,23 +21,42 @@ function markdownForPreview(md: string, sessionId?: string) {
   return { displayMd: transformed, hadPhoto: hadPhoto || /!\[个人照片\]/.test(md) };
 }
 
+export function injectResumeHighlight(md: string, snippet: string | undefined): string {
+  const needle = snippet?.trim();
+  if (!needle || needle.length < 8 || !md.includes(needle)) return md;
+  return md.split(needle).join(`<mark class="resume-highlight">${needle}</mark>`);
+}
+
 export default function ResumePreview({
   markdown,
   finalized = false,
   sessionId,
+  highlightText,
 }: {
   markdown: string;
   finalized?: boolean;
   sessionId?: string;
+  highlightText?: string;
 }) {
   const { displayMd, hadPhoto } = markdownForPreview(markdown, sessionId);
-  const photoUrl = sessionId ? `${API_BASE}/api/knowledge-base/photo/${sessionId}` : "";
-
+  const highlightedBody = injectResumeHighlight(
+    hadPhoto && sessionId
+      ? displayMd.split(/(?=## )/).slice(1).join("## ").replace(/^/, "## ")
+      : displayMd,
+    highlightText
+  );
   const headerMd = displayMd.split(/(?=## )/)[0].trim();
   const bodyMd =
     hadPhoto && sessionId
-      ? displayMd.split(/(?=## )/).slice(1).join("## ").replace(/^/, "## ")
-      : displayMd;
+      ? highlightedBody
+      : injectResumeHighlight(displayMd, highlightText);
+  const photoUrl = sessionId ? `${API_BASE}/api/knowledge-base/photo/${sessionId}` : "";
+
+  useEffect(() => {
+    if (!highlightText?.trim()) return;
+    const el = document.querySelector(".resume-highlight");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightText, markdown]);
 
   return (
     <div className="bg-white">
@@ -149,6 +169,12 @@ export default function ResumePreview({
         }
         .resume-preview-a4 .resume-header-row .col-right {
           min-width: 5.5em;
+        }
+        .resume-preview-a4 mark.resume-highlight {
+          background: #fef7e0;
+          color: #b45309;
+          padding: 0 2px;
+          border-radius: 2px;
         }
       `}</style>
     </div>

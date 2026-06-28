@@ -1,6 +1,6 @@
 ---
 description: ResumeAI 前端须遵循 Google 产品思维（Material IA、渐进披露、克制反馈）
-globs: ResumeAI/frontend/**
+globs: frontend/**
 alwaysApply: false
 ---
 
@@ -54,4 +54,4 @@ alwaysApply: false
 
 ## 与 Git 工作流
 
-前端改动完成后按 `resumeai-git-workflow.mdc` 提交；勿提交 `.env.local`。
+前端改动完成后按 `resumeai-git-workflow.mdc` 汇报未提交改动；用户要求提交时再 commit。勿提交 `.env.local`。

@@ -10,6 +10,7 @@ from app.services.agent_context import PLANNER_SYSTEM, build_planner_context
 from app.services.agent_registry import available_tools, is_risky_tool
 from app.services.agent_tools import execute_tool
 from app.services.chat_engine import stream_chat
+from app.services.targeted_edit import stream_targeted_edit
 from app.services.llm_client import client
 from app.services.photo_context import photo_context_for_session
 from app.services.resume_density import assess_density
@@ -218,6 +219,33 @@ async def stream_dynamic_agent(
             "agent": "coordinator",
             "content": "动态 Agent 已启动，将根据会话状态逐步规划…",
         }
+
+    # 编辑页：用户消息走「理解意图 → 定位行号 → 生成建议」，不经过关键词路由或盲目调工具
+    if mode == "chat" and user_message.strip():
+        photo_ctx = photo_context_for_session(sess.session_id, sess.profile_photo_ref)
+        from app.services.user_memory import memory_context_for_prompt
+
+        mem_ctx = memory_context_for_prompt(client_id)
+        async for event in stream_targeted_edit(
+            user_message,
+            sess,
+            ui_context=ui_context,
+            photo_context=f"{photo_ctx}\n\n{mem_ctx}",
+        ):
+            et = event.get("type")
+            if et in ("text", "reply_end", "thought", "confirmation_required"):
+                yield event
+            elif et == "done":
+                payload = {
+                    "type": "done",
+                    "reply": event.get("reply_text", ""),
+                    "new_suggestions": event.get("new_suggestions", []),
+                    **_session_payload(sess),
+                }
+                if event.get("ui_patch"):
+                    payload["ui_patch"] = event["ui_patch"]
+                yield payload
+        return
 
     for step in range(loop_limit):
         decision = await _plan_step(

@@ -76,15 +76,8 @@ export function applyEditChatDone(
     const pending = event.session.suggestions.filter(
       (s) => s.status === "pending" || s.status === "adjusted"
     );
-    const reply = event.reply || "";
-    if (
-      pending.length > 0 &&
-      (/待处理|修改建议|已生成/.test(reply) || /在哪|没看到|看不到|左侧/.test(reply))
-    ) {
+    if (pending.length > 0 && patch?.highlight_ids?.length) {
       setters.setFilter("pending");
-      if (highlightIds.length === 0) {
-        setters.setHighlightSuggestionIds(pending.map((s) => s.id));
-      }
     }
   }
 
@@ -123,5 +116,12 @@ export function buildEditUiContext(state: {
     accepted_count: state.suggestions.filter((s) => s.status === "accepted").length,
     rejected_count: state.suggestions.filter((s) => s.status === "rejected").length,
     pending_ids: pending.map((s) => s.id).slice(0, 20),
+    pending_items: pending.slice(0, 12).map((s) => ({
+      id: s.id,
+      section: s.section,
+      type: s.type,
+      original_preview: (s.original_text || "").slice(0, 120),
+      line_range: s.line_range,
+    })),
   };
 }

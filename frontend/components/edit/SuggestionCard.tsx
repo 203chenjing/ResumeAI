@@ -22,11 +22,12 @@ interface Props {
   onReject: () => void | Promise<void>;
   onUndo: () => void | Promise<void>;
   onAdjust: (instruction: string) => void | Promise<void>;
+  onFocus?: () => void;
   busy?: boolean;
   highlight?: boolean;
 }
 
-export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo, onAdjust, busy, highlight }: Props) {
+export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo, onAdjust, onFocus, busy, highlight }: Props) {
   const [showAdjust, setShowAdjust] = useState(false);
   const [instruction, setInstruction] = useState("");
   const t = TYPE_LABELS[suggestion.type] || {
@@ -44,8 +45,14 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onFocus?.();
+      }}
       className={clsx(
-        "surface-card p-4 text-sm transition-shadow",
+        "surface-card p-4 text-sm transition-shadow cursor-pointer",
         statusBorder,
         highlight && "ring-2 ring-[var(--primary)] ring-offset-2"
       )}
@@ -106,7 +113,11 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
         {suggestion.status === "pending" || suggestion.status === "adjusted" ? (
           <>
             <button
-              onClick={onAccept}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAccept();
+              }}
               disabled={busy}
               className="flex-1 px-2 py-1.5 bg-[var(--semantic-success)] text-white rounded-[var(--radius-full)] text-xs hover:opacity-90 flex items-center justify-center gap-1 disabled:opacity-50"
             >
@@ -114,14 +125,22 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
               {copy.suggestion.accept}
             </button>
             <button
-              onClick={onReject}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject();
+              }}
               disabled={busy}
               className="flex-1 px-2 py-1.5 btn-secondary text-xs py-1.5 justify-center disabled:opacity-50"
             >
               <X size={12} /> {copy.suggestion.reject}
             </button>
             <button
-              onClick={() => setShowAdjust(!showAdjust)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAdjust(!showAdjust);
+              }}
               disabled={busy}
               className="px-2 py-1.5 bg-[var(--primary-muted)] text-[var(--primary)] rounded-[var(--radius-full)] text-xs hover:opacity-90 flex items-center gap-1 disabled:opacity-50"
             >
@@ -130,7 +149,11 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
           </>
         ) : (
           <button
-            onClick={onUndo}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUndo();
+            }}
             disabled={busy}
             className="flex-1 px-2 py-1.5 bg-[var(--surface-base)] text-[var(--text-secondary)] rounded-[var(--radius-sm)] text-xs hover:bg-[var(--border-subtle)] flex items-center justify-center gap-1 disabled:opacity-50"
           >

@@ -76,13 +76,6 @@ export default function SuggestionPanel() {
           }
         }
         if (res.data.finalize_status) setFinalizeStatus(res.data.finalize_status as FinalizeStatus);
-
-        const labels = {
-          accepted: copy.edit.statusAccepted,
-          rejected: copy.edit.statusRejected,
-          pending: copy.edit.statusUndo,
-        };
-        pushToast(`建议${labels[status]}`, status === "accepted" ? "success" : "info");
       }
     } catch (e) {
       pushToast((e as Error).message, "error");
@@ -193,6 +186,7 @@ export default function SuggestionPanel() {
               suggestion={s}
               busy={busyId === s.id}
               highlight={highlightSuggestionIds.includes(s.id)}
+              onFocus={() => setHighlightSuggestionIds([s.id])}
               onAccept={() => setStatus(s.id, "accepted")}
               onReject={() => setStatus(s.id, "rejected")}
               onUndo={() => setStatus(s.id, "pending")}

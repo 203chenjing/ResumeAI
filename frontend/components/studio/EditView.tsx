@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -41,6 +41,7 @@ export default function EditView() {
     setKnowledgeBase,
     knowledgeBase,
     suggestions,
+    highlightSuggestionIds,
     jdAnalysis,
     matchResult,
     density,
@@ -165,6 +166,13 @@ export default function EditView() {
     pushToast,
   ]);
 
+  const previewHighlight = useMemo(() => {
+    const id = highlightSuggestionIds[0];
+    if (!id) return "";
+    const sug = suggestions.find((s) => s.id === id);
+    return sug?.original_text?.trim() || "";
+  }, [highlightSuggestionIds, suggestions]);
+
   if (!sessionId) return null;
 
   const pending = suggestions.filter((s) => s.status === "pending" || s.status === "adjusted").length;
@@ -249,7 +257,12 @@ export default function EditView() {
 
       <div className="flex-1 grid grid-cols-12 min-h-0 overflow-hidden bg-[var(--surface-base)]">
         <div className="col-span-12 md:col-span-5 overflow-auto border-r border-[var(--border-faint)] bg-[var(--surface-container)]">
-          <ResumePreview markdown={previewMarkdown} finalized={showFinalized} sessionId={sessionId} />
+          <ResumePreview
+            markdown={previewMarkdown}
+            finalized={showFinalized}
+            sessionId={sessionId}
+            highlightText={previewHighlight}
+          />
         </div>
         <div
           className={`col-span-12 md:overflow-hidden border-r border-[var(--border-faint)] min-h-0 ${

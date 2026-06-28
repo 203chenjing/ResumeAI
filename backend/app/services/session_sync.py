@@ -2,6 +2,7 @@
 import logging
 
 from app.models.schemas import Suggestion
+from app.services.suggestion_anchor import anchor_suggestion
 from app.services.match_analyzer import analyze_match
 from app.services.resume_density import assess_density
 
@@ -29,7 +30,13 @@ def upsert_suggestions(sess, raw_list: list[dict]) -> list[Suggestion]:
                 break
         if not replaced:
             sess.suggestions.append(sug)
-        updated.append(sug)
+        anchored = anchor_suggestion(sug, sess.current_resume_md or "")
+        if anchored.id == sug.id:
+            for i, existing in enumerate(sess.suggestions):
+                if existing.id == anchored.id:
+                    sess.suggestions[i] = anchored
+                    break
+        updated.append(anchored)
     return updated
 
 
@@ -71,13 +78,11 @@ def build_ui_patch_for_suggestions(new_sugs: list[dict]) -> dict:
 
 
 def build_ui_patch_for_pending(sess, *, user_message: str = "", reply: str = "") -> dict:
-    """用户追问或 get_state 时，引导左侧展示待处理建议。"""
+    """用户追问待处理建议时，引导中间栏展示。"""
     pending = [s for s in sess.suggestions if s.status in ("pending", "adjusted")]
     if not pending:
         return {}
-    msg = user_message or ""
-    focus_keys = ("在哪", "没看到", "看不到", "哪里", "左侧", "修改建议", "建议在哪")
-    if any(k in msg for k in focus_keys) or "待处理" in (reply or ""):
+    if (user_message or reply).strip():
         return {
             "filter": "pending",
             "highlight_ids": [s.id for s in pending],

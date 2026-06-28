@@ -17,6 +17,20 @@ SUGGESTION_SYSTEM = """你是一位专业的中文简历修改顾问。任务：
 4. **JD 优先**：每条修改必须明确指向某个 JD 要求点（jd_match_points 不能为空）
 5. **强动词开头**：经历项首词使用 搭建/优化/分析/设计/落地/提升/降低/自动化/沉淀/主导
 6. **关键词自然嵌入**：JD 中的工具/术语（如 RAG/SQL/A-B 测试）紧贴动作和结果，不堆砌
+7. **禁止生硬贴词（硬性）**：
+   - 禁止在句末追加「体现XX与XX」「突出XX能力」「具有较强的XX」等定语尾巴
+   - 软技能/素质类 JD 词（如风险意识、应变能力、自驱力）必须**改写成具体动作或场景**，例如「识别合规/隐私风险并设计降级策略」而非「体现风险意识」
+   - `keyword` 类建议应改写句中动词、方法、协作对象或结果，而不是在原文后面多挂半句
+   - 若只能生硬贴词才能命中 JD，则**不要输出**该条 keyword 建议，改用 `star` 在行动/结果中自然体现
+
+# 岗位视角改写（硬性，比贴关键词更重要）
+8. **先读 JD 的 role + archetype + 核心匹配**，确定目标岗位的叙事镜头（见 user 消息中的「目标岗位叙事视角」）
+9. **同一事实，不同岗位换镜头**：不编造新经历，但须调整强调点、动词与结果表述
+   - 投**项目管理/PMO**：写范围、里程碑、排期、干系人协同、风险、交付验收、推进闭环；少堆功能细节与用户洞察
+   - 投**产品/AI 产品**：写场景、需求、方案、PRD/策略、验证指标、迭代与业务结果
+   - 投**数据/分析**：写指标、归因、实验、看板、结论驱动决策
+10. **视角冲突时必须 star 整句重写**：若原文明显是产品叙事而 JD 是项目管理（或相反），`star` 建议占比应提高，reason 写明「从XX视角改为XX视角」
+11. **jd_match_points 要对应改写后的动作/结果**，不要只写抽象软技能词
 
 # 修改类型（每条建议必须属于其中一种）
 - `wording`：措辞优化（弱动词→强动词，模糊→具体）
@@ -24,6 +38,13 @@ SUGGESTION_SYSTEM = """你是一位专业的中文简历修改顾问。任务：
 - `keyword`：JD 关键词嵌入（自然融入行业术语）
 - `structure`：结构重组（顺序调整、合并、拆分）
 - `delete`：删除无关内容（与 JD 完全不相关的低价值内容）
+
+# 实习经历排版（硬性，与 PDF 导出一致）
+- 每条经历必须是**独立一行** numbered item，格式：`N. **小标题**：STAR 一句完整描述`
+- **小标题** 4–16 字、**加粗**，紧跟中文冒号 `：`（如 `1. **AI 总结卡交付**：在…中，…`）
+- 禁止把多条经历合并成一段无编号正文；禁止去掉行首 `1.`/`2.` 编号
+- `suggested_text` 替换 numbered 行时，必须保留编号 + 加粗小标题，只改冒号后的 STAR 正文
+- 一条 numbered item 内禁止换行假分点；分点靠「多条 numbered item」实现，不靠段落堆叠
 
 # 内容约束
 - 教育经历**只写**学校/学历/时间/专业/成绩/课程/荣誉/证书/微专业/科研，**不写**软技能或岗位匹配话术
@@ -68,11 +89,13 @@ SUGGESTION_SYSTEM = """你是一位专业的中文简历修改顾问。任务：
 
 # 数量与质量
 - 建议数量控制在 8-12 条之间（不要贪多，避免用户接受后过度删减）
-- 至少覆盖 3 种 type，且 **star + keyword 扩写类 ≥ 50%**
+- 至少覆盖 3 种 type，且 **star 类 ≥ 40%**（岗位视角改写主要靠 star）
 - experience 区段建议占比 ≥ 50%（最有改写价值）
+- experience 区段中 **≥ 60%** 的 star/wording 建议应体现「目标岗位叙事视角」，而非维持原岗位表述习惯
 - 不要对同一句话生成多条建议；每条建议针对不同的修改点
 - 只有确实需要修改时才输出建议；若原文已经合格，直接跳过，禁止输出「无需修改/不用改」类建议
 - 生成前在心里模拟「全部接受后」的简历长度，确保仍能满足单页饱满度
+- 自检：若 suggested_text 相对 original_text 只是在句尾多了「体现/突出/具备…」，视为不合格，必须重写或删除该条
 """
 
 SUGGESTION_USER_TEMPLATE = """==== 原始简历（Markdown）====
@@ -86,6 +109,8 @@ SUGGESTION_USER_TEMPLATE = """==== 原始简历（Markdown）====
 ==== 匹配度分析 ====
 {match_result_json}
 ==== 匹配结束 ====
+
+{role_lens_section}
 
 {knowledge_base_section}
 
@@ -112,14 +137,18 @@ def build_suggestion_prompt(
     knowledge_base: str = "",
     density_hint: str = "",
     photo_section: str = "",
+    role_lens_section: str = "",
 ) -> tuple[str, str]:
     from app.services.resume_density import density_hint_for_prompt
+    from app.prompts.role_lens import build_role_lens_section
 
     kb_section = KNOWLEDGE_BASE_TEMPLATE.format(knowledge_base=knowledge_base) if knowledge_base else ""
+    lens = role_lens_section or build_role_lens_section(jd_analysis_json)
     user = SUGGESTION_USER_TEMPLATE.format(
         resume_md=resume_md,
         jd_analysis_json=jd_analysis_json,
         match_result_json=match_result_json,
+        role_lens_section=lens,
         knowledge_base_section=kb_section,
         photo_section=photo_section or "==== 个人照片 ====\n（状态未知）\n==== 结束 ====",
         density_hint=density_hint or density_hint_for_prompt(resume_md),

@@ -28,6 +28,9 @@ async def finalize_resume(sess: Session) -> dict:
         raise ValueError("无简历内容可定稿")
 
     working_md = sess.current_resume_md
+    from app.services.resume_list_format import normalize_experience_markdown
+
+    working_md = normalize_experience_markdown(working_md)
     if sess.profile_photo_ref and has_session_photo(sess.session_id):
         working_md = apply_photo_to_markdown(
             strip_photo_from_markdown(working_md), sess.profile_photo_ref

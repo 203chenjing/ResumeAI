@@ -53,6 +53,12 @@ TOOL_CATALOG: dict[str, dict] = {
         "specialists": ["writer", "coordinator"],
         "risky": False,
     },
+    "propose_targeted_edits": {
+        "desc": "理解用户改稿意图，从简历目录定位具体行号并生成可定位的修改建议（指哪打哪）",
+        "specialists": ["writer", "coordinator"],
+        "risky": False,
+        "input_hint": {"user_message": "用户改稿指令", "ui_context": {}},
+    },
     "review_suggestions": {
         "desc": "批量处理 pending 建议；policy 由用户偏好或你根据交互决定",
         "specialists": ["qa", "coordinator"],

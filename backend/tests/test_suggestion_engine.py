@@ -1,5 +1,8 @@
 from app.models.schemas import Suggestion
-from app.services.suggestion_engine import _filter_noop_suggestions
+from app.services.suggestion_engine import (
+    _filter_noop_suggestions,
+    _filter_stiff_keyword_suggestions,
+)
 
 
 def test_filter_noop_suggestion_by_unchanged_text():
@@ -41,3 +44,35 @@ def test_filter_noop_suggestion_by_reason():
     )
 
     assert _filter_noop_suggestions([suggestion]) == []
+
+
+def test_filter_stiff_keyword_suffix():
+    suggestions = [
+        Suggestion(
+            id="stiff1",
+            section="experience",
+            type="keyword",
+            original_text=(
+                "输出分模块 AI 产品 PRD，撰写 Prompt 规范并与多类用户产线 PM、前端及合规评审对齐。"
+            ),
+            suggested_text=(
+                "输出分模块 AI 产品 PRD，撰写 Prompt 规范并与多类用户产线 PM、前端及合规评审对齐，"
+                "体现风险意识与应变能力。"
+            ),
+            reason="嵌入JD关键词「风险意识」「应变能力」，突出对风险边界的主动识别与处理。",
+            jd_match_points=["风险意识", "应变能力"],
+        ),
+        Suggestion(
+            id="good1",
+            section="experience",
+            type="keyword",
+            original_text="参与跨团队评审对齐方案。",
+            suggested_text="识别隐私与合规风险边界，推动降级策略与跨团队评审对齐方案。",
+            reason="将风险意识改写成具体动作，而非句尾贴词。",
+            jd_match_points=["风险意识"],
+        ),
+    ]
+
+    filtered = _filter_stiff_keyword_suggestions(suggestions)
+
+    assert [s.id for s in filtered] == ["good1"]

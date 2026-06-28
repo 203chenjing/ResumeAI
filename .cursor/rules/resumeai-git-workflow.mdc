@@ -1,18 +1,16 @@
 ---
-description: ResumeAI 项目 Git 提交规范与密钥安全（每次改代码须提交，禁止泄露 API Key）
-globs: ResumeAI/**
+description: ResumeAI Git 提交规范与密钥安全（用户要求提交时执行）
+globs: "**/*"
 alwaysApply: false
 ---
 
 # ResumeAI Git 工作流
 
-在 `ResumeAI/` 仓库内完成任何功能修复、配置或文档变更后，**必须创建 Git 提交**（用户未明确说「先别提交」时）。
+在 `ResumeAI/` 仓库内完成功能修复、配置或文档变更后：
 
-## 提交时机
-
-- 修完一个 bug 或完成一个功能点后立即提交
-- 不要累积大量未提交改动
-- 提交前用 `git status` 确认暂存范围
+1. **主动汇报**：用 `git status` 告知是否有未提交改动
+2. **等用户确认**：仅在用户明确要求「提交 / commit」时创建提交
+3. **用户确认后**：立即提交，不要累积大量未提交改动
 
 ## 禁止提交的文件（密钥与本地环境）
 

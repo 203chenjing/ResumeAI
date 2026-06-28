@@ -61,6 +61,10 @@ async def build_resume_from_knowledge(
     if not markdown.strip() or "#" not in markdown:
         raise ValueError("未能从知识库生成有效简历，请检查知识库内容后重试")
 
+    from app.services.resume_list_format import normalize_experience_markdown
+
+    markdown = normalize_experience_markdown(markdown)
+
     if sess.profile_photo_ref and has_session_photo(sess.session_id):
         markdown = apply_photo_to_markdown(
             strip_photo_from_markdown(markdown), sess.profile_photo_ref

@@ -18,6 +18,7 @@ const TOOL_LABELS: Record<string, string> = {
   analyze_jd: "分析岗位",
   analyze_match: "计算匹配度",
   generate_suggestions: "生成修改建议",
+  propose_targeted_edits: "精准定位改稿",
   review_suggestions: "审阅建议",
   finalize_resume: "确认定稿",
   finish: "完成任务",

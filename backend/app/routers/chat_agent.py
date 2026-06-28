@@ -74,6 +74,8 @@ async def edit_chat_agent(payload: EditChatRequest):
                         patch = build_ui_patch_for_suggestions(written_sugs)
                         if patch:
                             event["ui_patch"] = patch
+                    elif event.get("ui_patch"):
+                        event["ui_patch"] = event["ui_patch"]
                     elif not event.get("ui_patch"):
                         pending_now = [
                             s for s in sess.suggestions if s.status in ("pending", "adjusted")

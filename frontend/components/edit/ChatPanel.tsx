@@ -141,22 +141,15 @@ export default function ChatPanel() {
         }
         if (event.type === "done") {
           const reply = event.reply || "";
-          const genericDone = /^(操作完成。?|完成。?|任务已完成。?)$/.test(reply.trim());
+          const genericDone = reply.length <= 8 && /完成|done/i.test(reply.trim());
           if (reply && (!hasAssistantContent || !genericDone)) setLastAssistant(reply);
           const { newCount, highlightIds, pendingDelta } = applyEditChatDone(event, sessionSetters);
-          const pendingN = event.session?.suggestions?.filter(
-            (s) => s.status === "pending" || s.status === "adjusted"
-          ).length;
           if (newCount > 0) {
             pushToast(copy.edit.syncSuggestions(newCount), "success");
-          } else if (highlightIds.length > 0 || (pendingN && /待处理|修改建议|已生成/.test(event.reply || ""))) {
-            pushToast(copy.edit.highlightSuggestions(pendingN || highlightIds.length), "info");
-          } else if (
-            /已生成\s*\d+\s*条/.test(event.reply || "") &&
-            newCount === 0 &&
-            pendingDelta === 0
-          ) {
-            pushToast(copy.edit.syncFailed, "warning");
+          } else if (highlightIds.length > 0) {
+            pushToast(copy.edit.highlightSuggestions(highlightIds.length), "info");
+          } else if (pendingDelta > 0) {
+            pushToast(copy.edit.syncSuggestions(pendingDelta), "success");
           }
           setStreaming(false);
         }

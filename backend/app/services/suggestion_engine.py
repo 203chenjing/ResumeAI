@@ -8,7 +8,8 @@ from app.models.schemas import JDAnalysis, MatchResult, Suggestion
 from app.prompts.suggestions import build_suggestion_prompt
 from app.prompts.adjust import build_adjust_prompt
 from app.services.llm_client import client
-from app.services.resume_density import assess_density
+from app.services.suggestion_anchor import anchor_suggestions
+from app.services.resume_list_format import ensure_experience_item_format
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,52 @@ logger = logging.getLogger(__name__)
 _NOOP_REASON_RE = re.compile(
     r"无需(?:再)?修改|无须(?:再)?修改|不需要修改|不用(?:再)?改|无需改动|不用改动"
 )
+
+_STIFF_TAIL_RE = re.compile(
+    r"(?:[，,；;]|^)\s*"
+    r"(?:体现|突出|展现|彰显|具备|具有(?:较强)?的?|展示(?:出)?)"
+    r"[^。；]{2,48}$"
+)
+
+_EMBED_KEYWORD_REASON_RE = re.compile(r"嵌入\s*JD\s*关键词|关键词.*嵌入")
+
+
+def _added_tail(original: str, suggested: str) -> str:
+    o = (original or "").strip()
+    s = (suggested or "").strip()
+    if not o or not s.startswith(o):
+        return ""
+    return s[len(o) :].strip()
+
+
+def _is_stiff_keyword_suggestion(suggestion: Suggestion) -> bool:
+    """过滤句尾硬贴 JD 软技能/素质词的生硬 keyword/wording 建议。"""
+    if suggestion.type not in ("keyword", "wording"):
+        return False
+
+    tail = _added_tail(suggestion.original_text, suggestion.suggested_text)
+    if tail and _STIFF_TAIL_RE.search(tail):
+        return True
+
+    orig_n = _normalize_suggestion_text(suggestion.original_text)
+    sugg_n = _normalize_suggestion_text(suggestion.suggested_text)
+    if orig_n and sugg_n.startswith(orig_n) and len(sugg_n) - len(orig_n) <= 40:
+        if _EMBED_KEYWORD_REASON_RE.search(suggestion.reason or ""):
+            return True
+        if tail and len(tail) <= 24 and any(k in tail for k in ("体现", "突出", "具备", "具有")):
+            return True
+
+    return False
+
+
+def _filter_stiff_keyword_suggestions(suggestions: list[Suggestion]) -> list[Suggestion]:
+    filtered: list[Suggestion] = []
+    for s in suggestions:
+        if _is_stiff_keyword_suggestion(s):
+            logger.info("Drop stiff keyword suggestion: %s", s.id)
+            continue
+        filtered.append(s)
+    return filtered
 
 
 def _normalize_suggestion_text(text: str) -> str:
@@ -37,6 +84,23 @@ def _filter_noop_suggestions(suggestions: list[Suggestion]) -> list[Suggestion]:
             continue
         filtered.append(s)
     return filtered
+
+
+def _normalize_experience_suggestions(suggestions: list[Suggestion]) -> list[Suggestion]:
+    """经历区建议统一为 `N. **小标题**：…` 分点格式。"""
+    out: list[Suggestion] = []
+    for s in suggestions:
+        if s.section != "experience" or not s.suggested_text:
+            out.append(s)
+            continue
+        normalized = ensure_experience_item_format(
+            s.suggested_text, reference=s.original_text or s.suggested_text
+        )
+        if normalized == s.suggested_text:
+            out.append(s)
+            continue
+        out.append(s.model_copy(update={"suggested_text": normalized}))
+    return out
 
 
 def _filter_suggestions_by_density(suggestions: list[Suggestion], resume_md: str) -> list[Suggestion]:
@@ -95,6 +159,9 @@ async def generate_suggestions(
             logger.warning(f"Skip invalid suggestion: {e}, item={item}")
 
     suggestions = _filter_noop_suggestions(suggestions)
+    suggestions = _filter_stiff_keyword_suggestions(suggestions)
+    suggestions = _normalize_experience_suggestions(suggestions)
+    suggestions = anchor_suggestions(suggestions, resume_md)
     suggestions = _filter_suggestions_by_density(suggestions, resume_md)
     summary = _compute_summary(suggestions)
     return suggestions, summary
@@ -122,4 +189,13 @@ async def adjust_suggestion(
     data = await client.chat_json(system, user, temperature=0.4)
     data["id"] = suggestion.id  # 保持 id
     data["status"] = "adjusted"
-    return Suggestion(**data)
+    adj = Suggestion(**data)
+    if adj.section == "experience" and adj.suggested_text:
+        adj = adj.model_copy(
+            update={
+                "suggested_text": ensure_experience_item_format(
+                    adj.suggested_text, reference=adj.original_text or adj.suggested_text
+                )
+            }
+        )
+    return adj

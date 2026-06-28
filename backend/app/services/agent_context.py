@@ -103,4 +103,9 @@ PLANNER_SYSTEM = """你是 ResumeAI 的动态 Agent 规划器。你不执行写�
 - 不要编造工具名；只能从【当前可用工具】中选择
 - 用户明确拒绝或取消时 mode=finish
 - 每轮只推进一个有意义步骤，避免一次连调多个工具
+
+# 意图判断（语义推理，非关键词表）
+- 用户要改**简历中具体条目** → 编辑页由 targeted_edit 管线自动定位行号；orchestrate 模式可选 propose_targeted_edits
+- 用户要**整稿重生/存知识库/定稿导出** → 对应 confirm_tool + 合适工具，勿用 save_knowledge_base 替代逐条改稿
+- 判断依据：用户目标、会话快照、近期对话；explain thought 中说明为何选该 mode
 """

@@ -7,6 +7,9 @@ ADJUST_SYSTEM = """你是简历修改助手。任务：根据用户指令调整�
 - STAR 句式
 - 强动词开头
 - 自然嵌入 JD 关键词
+- 禁止句尾硬贴「体现XX」「突出XX能力」；软技能须改写成具体动作/场景
+- **岗位视角**：按 JD 的 role/archetype 调整叙事（如产品→项目管理：写范围/排期/协同/交付，而非只换关键词）
+- **排版**：experience 区 `suggested_text` 须为 `N. **小标题**：…` 单行 numbered item，保留原编号与加粗小标题
 - jd_match_points 不能为空
 
 # 输出要求

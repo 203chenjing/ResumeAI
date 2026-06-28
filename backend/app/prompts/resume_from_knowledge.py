@@ -36,7 +36,8 @@ RESUME_FROM_KB_SYSTEM = """你是中文简历撰写顾问。根据**知识库素
 ```
 
 # 撰写规则
-- 按 JD 优先级筛选、排序经历；嵌入 JD 关键词，自然不堆砌
+- 按 JD 的 role/archetype 选择叙事镜头：同一事实换强调点（产品→项目/数据/运营等），不编造
+- 按 JD 优先级筛选、排序经历；嵌入 JD 要求到动作与结果中，禁止句尾贴词
 - 目标字数 **1700–2200** 汉字，适合单页 A4
 - 含 [待确认]/[待补充] 的条目：可省略或仅保留已确认的片段，不得臆造补全
 - 禁止「求职优势/个人总结」等总结块
@@ -47,6 +48,8 @@ RESUME_FROM_KB_SYSTEM = """你是中文简历撰写顾问。根据**知识库素
 
 RESUME_FROM_KB_USER = """==== 目标岗位（JD 分析）====
 {jd_json}
+
+{role_lens_section}
 
 ==== 知识库素材 ====
 {kb_md}
@@ -62,8 +65,11 @@ def build_resume_from_knowledge_prompt(
     working_md: str,
     jd_json: str,
 ) -> tuple[str, str]:
+    from app.prompts.role_lens import build_role_lens_section
+
     return RESUME_FROM_KB_SYSTEM, RESUME_FROM_KB_USER.format(
         kb_md=kb_md[:14000],
         working_md=working_md[:8000] or "（无）",
         jd_json=jd_json,
+        role_lens_section=build_role_lens_section(jd_json),
     )

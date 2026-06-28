@@ -177,12 +177,21 @@ export const useAppStore = create<AppState>((set) => ({
 
   toasts: [],
   pushToast: (message, type = "info", duration = 5000) =>
-    set((state) => ({
-      toasts: [
-        ...state.toasts,
-        { id: `${Date.now()}-${Math.random()}`, message, type, duration },
-      ],
-    })),
+    set((state) => {
+      const maxToasts = 2;
+      const dupIdx = state.toasts.findIndex((t) => t.message === message && t.type === type);
+      const item: ToastItem = {
+        id: `${Date.now()}-${Math.random()}`,
+        message,
+        type,
+        duration,
+      };
+      if (dupIdx >= 0) {
+        const rest = state.toasts.filter((_, i) => i !== dupIdx);
+        return { toasts: [...rest, item].slice(-maxToasts) };
+      }
+      return { toasts: [...state.toasts, item].slice(-maxToasts) };
+    }),
   dismissToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 
