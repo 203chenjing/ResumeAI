@@ -20,9 +20,14 @@ if not exist "frontend\.env.local" (
     copy "frontend\.env.example" "frontend\.env.local"
 )
 
+REM 清理旧进程（避免多实例占端口导致 Failed to fetch）
+echo [INFO] 清理 8000/3000 端口旧进程...
+powershell -NoProfile -Command "foreach ($p in 8000,3000) { Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }"
+timeout /t 2 /nobreak > nul
+
 REM 启动后端
 echo [1/2] 启动后端 (端口 8000)...
-start "ResumeAI Backend" cmd /k "cd backend && py -3 -m venv .venv 2>nul & call .venv\Scripts\activate && pip install -q -r requirements.txt && python -m playwright install chromium && python run_server.py"
+start "ResumeAI Backend" cmd /k "cd backend && python -m venv .venv 2>nul & call .venv\Scripts\activate && pip install -q -r requirements.txt && python -m playwright install chromium && python run_server.py"
 
 REM 启动前端
 echo [2/2] 启动前端 (端口 3000)...

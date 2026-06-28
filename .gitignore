@@ -1,4 +1,6 @@
 backend/.env
+backend/.env.*
+!backend/.env.example
 backend/.venv/
 backend/__pycache__/
 backend/app/**/__pycache__/
@@ -7,6 +9,8 @@ backend/exports/*.md
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+frontend/.env*.local
+!frontend/.env.example
 frontend/tsconfig.tsbuildinfo
 *.log
 .DS_Store

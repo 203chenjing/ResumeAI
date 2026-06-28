@@ -1,0 +1,46 @@
+---
+description: ResumeAI 项目 Git 提交规范与密钥安全（每次改代码须提交，禁止泄露 API Key）
+globs: ResumeAI/**
+alwaysApply: false
+---
+
+# ResumeAI Git 工作流
+
+在 `ResumeAI/` 仓库内完成任何功能修复、配置或文档变更后，**必须创建 Git 提交**（用户未明确说「先别提交」时）。
+
+## 提交时机
+
+- 修完一个 bug 或完成一个功能点后立即提交
+- 不要累积大量未提交改动
+- 提交前用 `git status` 确认暂存范围
+
+## 禁止提交的文件（密钥与本地环境）
+
+**永远不要** `git add` 或提交以下内容：
+
+| 路径 | 原因 |
+|------|------|
+| `backend/.env` | 含 `DEEPSEEK_API_KEY` 等密钥 |
+| `frontend/.env.local` | 本地 API 地址等 |
+| `backend/.venv/`、`frontend/node_modules/` | 依赖目录 |
+| `backend/data/` | 本地会话与用户数据 |
+| `*.log`、`debug-*.log` | 调试日志可能含敏感信息 |
+
+仅提交 `backend/.env.example`、`frontend/.env.example` 作为模板，**占位符**不得替换为真实 Key。
+
+## 提交前检查清单
+
+1. `git status` — 确认无 `.env` / `.env.local` 被暂存
+2. `git diff --cached` — 扫一眼是否有 `sk-` 开头的密钥字符串
+3. 若误暂存密钥文件：`git restore --staged backend/.env` 等，并确认 `.gitignore` 已覆盖
+
+## 提交信息风格
+
+- 英文或中文均可，一句话说明「为什么」
+- 示例：`fix(studio): sync JD analysis to session on one-click edit`
+- 示例：`chore(start): clear stale ports before launch on Windows`
+
+## 推送
+
+- 仅在用户要求或任务明确要求时 `git push`
+- 默认推送到 `origin main`（或当前功能分支）

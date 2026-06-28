@@ -127,6 +127,10 @@ export default function PrepareView() {
       setParsedResume(res.data.parsed);
       setOriginalMarkdown(res.data.markdown);
       setCurrentMarkdown(res.data.markdown);
+      // 新会话与旧岗位分析/匹配结果解绑，避免一键改稿跳过 JD 同步
+      setJdAnalysis(null);
+      setMatchResult(null);
+      setSuggestions([]);
       if (res.data.aha?.summary) {
         pushToast(res.data.aha.summary, "info");
       }
@@ -192,21 +196,15 @@ export default function PrepareView() {
 
     try {
       patchStep("analyze_jd", { status: "running", detail: "正在读懂岗位要求…" });
-      if (!analysis) {
-        const res = await api.analyzeJD(sessionId, jdText);
-        if (!res.success || !res.data) throw new Error(res.error || "岗位分析未完成");
-        analysis = res.data.analysis;
-        setJdAnalysis(analysis);
-        patchStep("analyze_jd", {
-          status: "done",
-          detail: `${analysis.role}${analysis.company ? ` · ${analysis.company}` : ""}`,
-        });
-      } else {
-        patchStep("analyze_jd", {
-          status: "done",
-          detail: `${analysis.role}${analysis.company ? ` · ${analysis.company}` : ""}（已分析）`,
-        });
-      }
+      // 始终同步 JD 到当前 session，避免前端缓存（岗位页带入）与后端会话不一致
+      const jdRes = await api.analyzeJD(sessionId, jdText);
+      if (!jdRes.success || !jdRes.data) throw new Error(jdRes.error || "岗位分析未完成");
+      analysis = jdRes.data.analysis;
+      setJdAnalysis(analysis);
+      patchStep("analyze_jd", {
+        status: "done",
+        detail: `${analysis.role}${analysis.company ? ` · ${analysis.company}` : ""}`,
+      });
 
       patchStep("match", { status: "running", detail: "对照简历与岗位要求…" });
       const m = await api.analyzeMatch(sessionId);
