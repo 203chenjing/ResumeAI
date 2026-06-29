@@ -1,0 +1,25 @@
+backend/evals/README.md
+  s_29c1e716207cc6::t_17bb443ef381bd 19
+backend/requirements-evals.txt
+  s_29c1e716207cc6::t_df74475eb06a9b 1-4
+backend/evals/test_copilot_tooluse.py
+  s_29c1e716207cc6::t_dfe00e66d19ed4 4
+backend/pytest.ini
+  s_29c1e716207cc6::t_72b5a5f43c4d74 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.24-trip",
+  "base_commit_sha": "e54da59cd3b15a3dfa326d523b8bf46ef825b9b7",
+  "prompts": {},
+  "sessions": {
+    "s_29c1e716207cc6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b5ef8272-92e6-4d82-9973-9eeee22630a0",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    }
+  }
+}
