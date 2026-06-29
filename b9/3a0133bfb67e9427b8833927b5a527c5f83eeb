@@ -1,0 +1,19 @@
+backend/app/services/crawl_scheduler.py
+  s_3e30ab43e55ff7::t_a9b76ef8bf1cc5 17,19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.24-trip",
+  "base_commit_sha": "b93a0133bfb67e9427b8833927b5a527c5f83eeb",
+  "prompts": {},
+  "sessions": {
+    "s_3e30ab43e55ff7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b97e172a-d5b0-407d-aa9a-f14672e0a9d0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    }
+  }
+}
