@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
 
-# (provider, hour, minute) — 按数据质量优先：牛客/聚合 → 企业 → 高校
+# (provider, hour, minute) — 按数据质量优先：GitHub 校招库（最快/最高 ok 率）→ 牛客/聚合 → 企业 → 高校
 STAGGERED_PROVIDERS: list[tuple[str, int, int]] = [
+    ("github_joblist", 5, 50),
     ("job_aggregator", 6, 0),
     ("company_campus", 7, 0),
     ("university_html", 7, 30),

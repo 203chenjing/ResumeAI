@@ -31,17 +31,20 @@ providers:
   github_joblist:
     enabled: true
     china_only: false  # 国内仓库本身已是中国岗位；海外源单独用 china_only 过滤
-    max_items: 300
+    max_items: 1200
     sources:
+      # 实测：放开 max_items 后单源可达 600+ 岗位、95%+ ok，是性价比最高的数据源。
       - id: campus2026-cn
         name: Campus2026 互联网校招&实习（含外企中国分部）
         raw_url: https://raw.githubusercontent.com/namewyf/Campus2026/main/README.md
         channel: GitHub校招仓库
+        max_items: 400
         tags: [校招, 实习, 中文, GitHub]
       - id: 0voice-spring
         name: 0voice 计算机校招汇总（含外企/国企）
         raw_url: https://raw.githubusercontent.com/0voice/2026-Computer-Spring-Recruitment-Job-Compilation/main/README.md
         channel: GitHub校招仓库
+        max_items: 800
         tags: [校招, 计算机, 中文, GitHub]
       # 海外仓库：默认关闭。若想看在华岗位可设 china_only: true 过滤后开启。
       - id: speedyapply-intl
@@ -57,8 +60,11 @@ providers:
   # 面向「在华外企」：china_only 仅保留中国大陆地点的岗位。
   # board 为公司在对应平台的 slug；确认 slug 后再启用对应公司。
   # ---------------------------------------------------------------------------
+  # 实测结论：Greenhouse/Lever/Ashby 主要服务欧美公司，开启 china_only 后产出 0；
+  # 国内大厂（字节/腾讯/阿里等）均用自家 ATS，已由 company_campus 覆盖。
+  # 故默认关闭本 provider，避免占用每日调度槽位空跑。需对接特定在华外企时再开。
   ats_board:
-    enabled: true
+    enabled: false
     campus_only: true
     china_only: true
     max_items_per_board: 60
@@ -67,9 +73,11 @@ providers:
       - name: Stripe
         platform: greenhouse
         board: stripe
+        enabled: false
       - name: Databricks
         platform: greenhouse
         board: databricks
+        enabled: false
       - name: Airtable
         platform: lever
         board: airtable
@@ -85,6 +93,7 @@ providers:
       # --- 北京 ---
       - id: tsinghua-xxfb
         name: 清华大学
+        enabled: false  # 诊断：fetched 16 ok 0，全是资讯/通知噪声，待结构化 parser
         list_url: http://career.cic.tsinghua.edu.cn/xsglxt/f/jyxt/anony/xxfb
         parser: generic_list
         channel: 高校就业网
@@ -97,6 +106,7 @@ providers:
 
       - id: pku-fair
         name: 北京大学
+        enabled: false  # 诊断：fetched 15 ok 0，宣讲会列表非岗位，待结构化 parser
         list_url: https://scc.pku.edu.cn/frontpage/pku/html/recruitmentFairList.html?fairType=1
         parser: generic_list
         channel: 高校就业网
@@ -108,6 +118,7 @@ providers:
 
       - id: pku-info
         name: 北京大学
+        enabled: false  # 诊断：fetched 16 ok 0，资讯噪声，待结构化 parser
         list_url: https://scc.pku.edu.cn/frontpage/pku/html/recruitmentinfoList.html
         parser: generic_list
         channel: 高校就业网
@@ -119,6 +130,7 @@ providers:
 
       - id: ruc-career
         name: 中国人民大学
+        enabled: false  # 诊断：fetched 0，首页无可解析岗位列表
         list_url: http://rdjy.ruc.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -235,6 +247,7 @@ providers:
       # --- 武汉 / 西安 / 成都 / 厦门（补 jiandan_job 热门高校）---
       - id: whu-career
         name: 武汉大学
+        enabled: false  # 诊断：域名无法解析(ERR_NAME_NOT_RESOLVED)，疑似失效；生产环境可达可重启
         list_url: https://scc.whu.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -247,6 +260,7 @@ providers:
 
       - id: hust-career
         name: 华中科技大学
+        enabled: false  # 诊断：域名无法解析(ERR_NAME_NOT_RESOLVED)，疑似失效；生产环境可达可重启
         list_url: https://career.hust.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -270,6 +284,7 @@ providers:
 
       - id: xmu-career
         name: 厦门大学
+        enabled: false  # 诊断：域名无法解析(ERR_NAME_NOT_RESOLVED)，疑似失效；生产环境可达可重启
         list_url: https://career.xmu.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -281,6 +296,7 @@ providers:
 
       - id: uestc-career
         name: 电子科技大学
+        enabled: false  # 诊断：域名无法解析(ERR_NAME_NOT_RESOLVED)，疑似失效；生产环境可达可重启
         list_url: https://www.jyzx.uestc.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -417,6 +433,7 @@ providers:
 
       - id: cufe-career
         name: 中央财经大学
+        enabled: false  # 诊断：连接重置(ERR_CONNECTION_RESET)且耗时 79s，拖垮整体爬取，疑似失效
         list_url: https://scc.cufe.edu.cn/frontpage/cufe/html/recruitmentinfoList.html
         parser: generic_list
         channel: 高校就业网
@@ -428,6 +445,7 @@ providers:
 
       - id: cueb-career
         name: 首都经济贸易大学
+        enabled: false  # 诊断：域名无法解析(ERR_NAME_NOT_RESOLVED)，疑似失效；生产环境可达可重启
         list_url: https://job.cueb.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -437,8 +455,10 @@ providers:
         max_items: 30
         tags: [校招, 北京, 首经贸, L1]
 
-      - id: ecnu-career
+      # 注：ecnu-career（华东师范大学）已在上方上海分区定义，此处为重复项，禁用避免重复抓取
+      - id: ecnu-career-dup
         name: 华东师范大学
+        enabled: false
         list_url: https://career.ecnu.edu.cn/
         parser: generic_list
         channel: 高校就业网
@@ -522,6 +542,7 @@ providers:
 
       - id: baidu-campus
         name: 百度
+        enabled: false  # 诊断：SPA 反爬，fetched 0 ok 0，待专用 parser
         list_url: https://talent.baidu.com/jobs/campus
         parser: generic_list
         channel: 企业校招
@@ -547,6 +568,7 @@ providers:
 
       - id: netease-campus
         name: 网易
+        enabled: false  # 诊断：耗时 63s 且 fetched 0 ok 0，SPA 反爬，待专用 parser
         list_url: https://campus.163.com/
         parser: generic_list
         channel: 企业校招
@@ -558,6 +580,7 @@ providers:
 
       - id: kuaishou-campus
         name: 快手
+        enabled: false  # 诊断：fetched 1 ok 0，SPA 反爬，待专用 parser
         list_url: https://campus.kuaishou.cn/
         parser: generic_list
         channel: 企业校招
@@ -631,6 +654,7 @@ providers:
 
       - id: mihoyo-campus
         name: 米哈游
+        enabled: false  # 诊断：fetched 0 ok 0，hash 路由 SPA，待专用 parser
         list_url: https://jobs.mihoyo.com/#/campus
         parser: generic_list
         channel: 企业校招
