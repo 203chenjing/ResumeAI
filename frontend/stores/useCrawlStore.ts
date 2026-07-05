@@ -16,12 +16,17 @@ interface CrawlState {
   status: CrawlUiStatus;
   progress: string;
   error: string;
+  /** 增量刷新时的中间态 */
+  partialTotal: number;
+  partialNew: number;
+  providerIndex: number;
+  providerTotal: number;
   /** 完成后供岗位页消费一次 */
   lastResult: CrawlResultPayload | null;
   /** 用于自动收起「已完成」提示 */
   doneAt: number | null;
   setRunning: (progress?: string) => void;
-  setProgress: (progress: string) => void;
+  setProgress: (progress: string, partial?: { total?: number; new_count?: number; provider_index?: number; provider_total?: number }) => void;
   setDone: (progress: string, result?: CrawlResultPayload) => void;
   setError: (message: string) => void;
   consumeLastResult: () => CrawlResultPayload | null;
@@ -32,13 +37,34 @@ export const useCrawlStore = create<CrawlState>((set, get) => ({
   status: "idle",
   progress: "",
   error: "",
+  partialTotal: 0,
+  partialNew: 0,
+  providerIndex: 0,
+  providerTotal: 0,
   lastResult: null,
   doneAt: null,
 
   setRunning: (progress = "") =>
-    set({ status: "running", progress, error: "", doneAt: null, lastResult: null }),
+    set({
+      status: "running",
+      progress,
+      error: "",
+      doneAt: null,
+      lastResult: null,
+      partialTotal: 0,
+      partialNew: 0,
+      providerIndex: 0,
+      providerTotal: 0,
+    }),
 
-  setProgress: (progress) => set({ progress }),
+  setProgress: (progress, partial) =>
+    set({
+      progress,
+      partialTotal: partial?.total ?? get().partialTotal,
+      partialNew: partial?.new_count ?? get().partialNew,
+      providerIndex: partial?.provider_index ?? get().providerIndex,
+      providerTotal: partial?.provider_total ?? get().providerTotal,
+    }),
 
   setDone: (progress, result) =>
     set({
@@ -58,5 +84,15 @@ export const useCrawlStore = create<CrawlState>((set, get) => ({
     return payload;
   },
 
-  dismiss: () => set({ status: "idle", progress: "", error: "", doneAt: null }),
+  dismiss: () =>
+    set({
+      status: "idle",
+      progress: "",
+      error: "",
+      doneAt: null,
+      partialTotal: 0,
+      partialNew: 0,
+      providerIndex: 0,
+      providerTotal: 0,
+    }),
 }));

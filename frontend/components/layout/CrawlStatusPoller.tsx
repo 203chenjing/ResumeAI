@@ -52,8 +52,17 @@ export default function CrawlStatusPoller() {
         }
 
         if (data.status === "running") {
-          setRunning(data.progress || copy.crawl.running);
-          schedule(10000);
+          const partial = {
+            total: data.total,
+            new_count: data.new_count,
+            provider_index: data.provider_index,
+            provider_total: data.provider_total,
+          };
+          if (useCrawlStore.getState().status !== "running") {
+            setRunning(data.progress || copy.crawl.running);
+          }
+          useCrawlStore.getState().setProgress(data.progress || copy.crawl.running, partial);
+          schedule(3000);
           return;
         }
 

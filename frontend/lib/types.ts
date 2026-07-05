@@ -150,6 +150,24 @@ export interface JobPosting {
   status?: string;
   referral_code?: string;
   legitimacy?: "trusted" | "likely" | "suspect" | "";
+  graduation_cohort?: string;
+  cohort_confidence?: "explicit" | "inferred" | "unknown" | "";
+  cross_verified?: boolean;
+  verification_score?: number;
+  verification_source_count?: number;
+  source_attestations?: SourceAttestation[];
+  alternate_jd_urls?: string[];
+}
+
+export interface SourceAttestation {
+  source: string;
+  channel?: string;
+  jd_url?: string;
+  legitimacy?: string;
+  crawled_at?: string;
+  source_site?: string;
+  graduation_cohort?: string;
+  cohort_confidence?: string;
 }
 
 export interface JobFeedMeta {
@@ -157,6 +175,8 @@ export interface JobFeedMeta {
   job_types: Record<string, number>;
   sources: Record<string, number>;
   work_cities: Record<string, number>;
+  graduation_cohorts?: Record<string, number>;
+  cross_verified_count?: number;
   last_crawled_at: string;
 }
 
@@ -164,6 +184,8 @@ export interface JobPreferences {
   target_roles: string[];
   target_cities: string[];
   job_types: string[];
+  target_cohort: string;
+  include_unknown_cohort: boolean;
   company_wishlist: string[];
   company_blocklist: string[];
   extra_notes: string;

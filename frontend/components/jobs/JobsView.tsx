@@ -14,6 +14,8 @@ import {
   facetTags,
   formatDateShort,
   freshnessLabel,
+  attestationSummary,
+  cohortLabel,
   positionTitles,
   publisherLabel,
   sourceLabel,
@@ -43,19 +45,21 @@ const PRIORITY_BADGE: Record<string, string> = {
 
 const TYPE_OPTIONS = ["", "实习", "校招", "提前批", "秋招", "春招", "补录"];
 
-/** 与后端 QUICK_CRAWL_PROVIDERS 一致：结构化源优先 */
-const QUICK_CRAWL = ["github_joblist", "ats_board", "job_aggregator"];
-const FULL_CRAWL = [...QUICK_CRAWL, "company_campus", "university_html"];
-
 const SOURCE_OPTIONS = [
   { id: "", label: "全部来源" },
   { id: "github_joblist", label: "GitHub 校招库" },
-  { id: "ats_board", label: "企业 ATS" },
+  { id: "browser_discovery", label: "浏览器检索" },
+  { id: "early_batch", label: "27届提前批" },
+  { id: "search_discovery", label: "AI 搜索发现" },
+  { id: "campus_patrol", label: "大厂巡检" },
   { id: "job_aggregator", label: "求职平台" },
   { id: "company_campus", label: "企业官网" },
   { id: "university_html", label: "高校就业网" },
+  { id: "wechat_discovery", label: "公众号挖掘" },
   { id: "wechat_article", label: "公众号" },
 ];
+
+const COHORT_OPTIONS = ["", "27届", "26届", "25届"];
 
 function sourceHealthLabel(summary?: string) {
   if (summary === "healthy") return copy.jobs.sourceHealthy;
@@ -77,14 +81,19 @@ export default function JobsView() {
   const [sourceFilter, setSourceFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [cohortFilter, setCohortFilter] = useState("27届");
+  const [includeUnknownCohort, setIncludeUnknownCohort] = useState(true);
   const [hideWeak, setHideWeak] = useState(true);
   const [digest, setDigest] = useState<JobDigest | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [crawlHealth, setCrawlHealth] = useState<CrawlHealth | null>(null);
   const [crawlHistory, setCrawlHistory] = useState<CrawlRun[]>([]);
-  const [organizing, setOrganizing] = useState(false);
 
   const crawlUiStatus = useCrawlStore((s) => s.status);
+  const crawlProgress = useCrawlStore((s) => s.progress);
+  const partialTotal = useCrawlStore((s) => s.partialTotal);
+  const providerIndex = useCrawlStore((s) => s.providerIndex);
+  const providerTotal = useCrawlStore((s) => s.providerTotal);
   const lastResult = useCrawlStore((s) => s.lastResult);
   const setCrawlRunning = useCrawlStore((s) => s.setRunning);
   const consumeLastResult = useCrawlStore((s) => s.consumeLastResult);
@@ -94,13 +103,15 @@ export default function JobsView() {
     if (q) setFilter(q);
   }, [searchParams]);
 
-  async function load() {
-    setLoading(true);
+  async function load(options?: { silent?: boolean }) {
+    if (!options?.silent) setLoading(true);
     try {
       const res = await api.getJobFeed(getClientId(), {
         source: sourceFilter || undefined,
         job_type: typeFilter || undefined,
         work_city: cityFilter || undefined,
+        graduation_cohort: cohortFilter || undefined,
+        include_unknown_cohort: includeUnknownCohort,
         include_weak: !hideWeak,
       });
       if (res.success && res.data) {
@@ -109,13 +120,13 @@ export default function JobsView() {
         if (res.data.digest) setDigest(res.data.digest);
       }
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     load();
-  }, [sourceFilter, typeFilter, cityFilter, hideWeak]);
+  }, [sourceFilter, typeFilter, cityFilter, cohortFilter, includeUnknownCohort, hideWeak]);
 
   useEffect(() => {
     api.getCrawlHealth(getClientId()).then((res) => {
@@ -133,6 +144,14 @@ export default function JobsView() {
     void load();
   }, [lastResult, consumeLastResult]);
 
+  useEffect(() => {
+    if (crawlUiStatus !== "running") return;
+    const timer = window.setInterval(() => {
+      void load({ silent: true });
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [crawlUiStatus, sourceFilter, typeFilter, cityFilter, cohortFilter, includeUnknownCohort, hideWeak]);
+
   function notifyCrawl(message: string, type: "info" | "success" | "error" | "warning" = "success") {
     if (!message) return;
     pushToast(message, type, 5000);
@@ -142,7 +161,8 @@ export default function JobsView() {
     new_count?: number;
     total?: number;
     quality?: { validated_ok?: number };
-    organize?: { before?: number; after?: number; ok_count?: number; actionable?: number };
+    cross_verify?: { cross_verified?: number };
+    organize?: { before?: number; after?: number; ok_count?: number; actionable?: number; cross_verified?: number };
     jobs?: JobPosting[];
     digest?: JobDigest;
     crawl_health?: CrawlHealth;
@@ -156,6 +176,10 @@ export default function JobsView() {
       const org = data.organize;
       if (org?.actionable != null) {
         msg += `，整理后 ${org.actionable} 条可浏览`;
+      }
+      const cv = data.cross_verify?.cross_verified ?? org?.cross_verified;
+      if (cv != null && cv > 0) {
+        msg += `，${copy.jobs.crossVerified(cv)}`;
       }
       notifyCrawl(msg, "success");
     } else if (data.organize?.before != null && data.organize?.after != null) {
@@ -174,23 +198,6 @@ export default function JobsView() {
     }).catch(() => {});
   }
 
-  async function organizeFeed() {
-    if (organizing) return;
-    setOrganizing(true);
-    try {
-      const res = await api.organizeJobFeed(getClientId());
-      if (!res.success || !res.data) throw new Error("整理失败");
-      const d = res.data;
-      if (d.jobs) setJobs(d.jobs);
-      if (d.meta) setMeta(d.meta);
-      notifyCrawl(copy.jobs.organizeDone(d.before, d.after, d.ok_count ?? d.actionable ?? 0), "success");
-    } catch (e) {
-      notifyCrawl((e as Error).message, "error");
-    } finally {
-      setOrganizing(false);
-    }
-  }
-
   async function regenerateDigest() {
     setDigestLoading(true);
     try {
@@ -201,16 +208,17 @@ export default function JobsView() {
     }
   }
 
-  async function crawl(providers: string[]) {
+  async function refreshJobs() {
+    if (crawling || crawlUiStatus === "running") return;
     setCrawling(true);
     setDigestLoading(true);
     setCrawlRunning(copy.crawl.starting);
     try {
-      const res = await api.crawlJobs(getClientId(), providers);
+      const res = await api.crawlJobs(getClientId(), null);
       if (!res.success || !res.data) return;
       const data = res.data;
       if (data.status === "running") {
-        notifyCrawl(copy.crawl.backgroundHint, "info");
+        notifyCrawl(copy.jobs.refreshHint, "info");
         setCrawlRunning(data.progress || copy.crawl.running);
         return;
       }
@@ -300,6 +308,8 @@ export default function JobsView() {
     setSourceFilter("");
     setTypeFilter("");
     setCityFilter("");
+    setCohortFilter("");
+    setIncludeUnknownCohort(true);
     setHideWeak(false);
   }
 
@@ -315,21 +325,17 @@ export default function JobsView() {
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => crawl(QUICK_CRAWL)}
+            onClick={refreshJobs}
             disabled={crawling || crawlUiStatus === "running"}
+            title={copy.jobs.refreshHint}
             className="inline-flex items-center gap-2 px-4 py-2 btn-primary"
           >
-            {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {crawling || crawlUiStatus === "running" ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
             {copy.jobs.refresh}
-          </button>
-          <button
-            type="button"
-            onClick={organizeFeed}
-            disabled={organizing || crawling}
-            className="inline-flex items-center gap-2 px-4 py-2 btn-secondary"
-          >
-            {organizing ? <Loader2 size={14} className="animate-spin" /> : null}
-            {organizing ? copy.jobs.organizing : copy.jobs.organize}
           </button>
           {selected.size > 0 && (
             <a
@@ -341,6 +347,26 @@ export default function JobsView() {
           )}
         </div>
       </div>
+
+      {crawlUiStatus === "running" && (
+        <div
+          className="mb-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-base)] px-4 py-3 text-sm text-[var(--text-secondary)]"
+          role="status"
+          aria-live="polite"
+        >
+          <Loader2 size={16} className="animate-spin shrink-0 text-[var(--primary)]" />
+          <div className="min-w-0">
+            <p className="text-[var(--text-primary)] truncate">
+              {crawlProgress || copy.crawl.running}
+            </p>
+            <p className="text-xs text-[var(--text-disabled)] mt-0.5">
+              {providerTotal > 0
+                ? copy.crawl.runningDetail(providerIndex, providerTotal, partialTotal || meta?.total || 0)
+                : copy.jobs.refreshHint}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-disabled)]" />
@@ -370,6 +396,22 @@ export default function JobsView() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <select className="input-select" value={cohortFilter} onChange={(e) => setCohortFilter(e.target.value)}>
+          <option value="">{copy.jobs.cohortAll}</option>
+          {COHORT_OPTIONS.filter(Boolean).map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        {cohortFilter && (
+          <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeUnknownCohort}
+              onChange={(e) => setIncludeUnknownCohort(e.target.checked)}
+            />
+            {copy.jobs.includeUnknownCohort}
+          </label>
+        )}
         <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
           <input type="checkbox" checked={hideWeak} onChange={(e) => setHideWeak(e.target.checked)} />
           {copy.jobs.hideWeakLabel}
@@ -379,6 +421,9 @@ export default function JobsView() {
       {meta && (
         <p className="mb-4 text-xs text-[var(--text-secondary)]">
           共 {meta.total} 条 · {copy.jobs.syncedLocal}
+          {meta.cross_verified_count != null && meta.cross_verified_count > 0 && (
+            <span className=" text-[var(--primary)]"> · {copy.jobs.crossVerified(meta.cross_verified_count)}</span>
+          )}
           {meta.last_crawled_at && ` · 更新于 ${formatDateShort(meta.last_crawled_at)}`}
           {crawlHealth?.summary && (
             <span
@@ -407,14 +452,11 @@ export default function JobsView() {
           <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
-              onClick={() => crawl(QUICK_CRAWL)}
-              disabled={crawling}
+              onClick={refreshJobs}
+              disabled={crawling || crawlUiStatus === "running"}
               className="btn-primary"
             >
               {copy.jobs.refresh}
-            </button>
-            <button type="button" onClick={organizeFeed} disabled={organizing} className="btn-secondary">
-              {copy.jobs.organize}
             </button>
             <button type="button" onClick={relaxFilters} className="btn-secondary">
               放宽筛选
@@ -476,18 +518,6 @@ export default function JobsView() {
           <ChevronDown size={16} className="text-[var(--text-secondary)] group-open:rotate-180 transition-transform" />
         </summary>
         <div className="px-4 pb-4 space-y-4 border-t border-[var(--border-faint)]">
-          <div className="pt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => crawl(FULL_CRAWL)}
-              disabled={crawling}
-              className="btn-secondary text-sm"
-            >
-              {crawling ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              {copy.jobs.refreshFull}
-            </button>
-          </div>
-
           <JobPreferencesPanel onSaved={() => regenerateDigest()} />
 
           <JobDigestPanel
@@ -532,7 +562,7 @@ export default function JobsView() {
               onChange={(e) => setWechatUrl(e.target.value)}
             />
             <button type="button" onClick={ingestWechat} className="btn-secondary text-sm">
-              <Link2 size={14} /> 订阅
+              <Link2 size={14} /> 添加
             </button>
           </div>
         </div>
@@ -540,7 +570,7 @@ export default function JobsView() {
 
       <CareerCopilotPanel
         onApplyJob={applyJobById}
-        onCrawl={() => crawl(QUICK_CRAWL)}
+        onCrawl={refreshJobs}
         onFilter={(q) => setFilter(q)}
         onCompare={(ids) => router.push(`/jobs/compare?ids=${ids.join(",")}`)}
       />
@@ -588,6 +618,21 @@ function JobTableRow({
           {job.legitimacy === "trusted" && (
             <span className="text-xs px-1 py-0.5 rounded font-medium bg-[var(--semantic-success-muted)] text-[var(--semantic-success)]">可信</span>
           )}
+          {job.cross_verified && (
+            <span className="text-xs px-1 py-0.5 rounded font-medium bg-[var(--semantic-success-muted)] text-[var(--semantic-success)]">
+              {copy.jobs.crossVerifiedBadge}
+              {job.verification_source_count ? ` · ${job.verification_source_count}` : ""}
+            </span>
+          )}
+          {cohortLabel(job) ? (
+            <span className="text-xs px-1 py-0.5 rounded font-medium bg-[var(--primary-muted)] text-[var(--primary)]">
+              {cohortLabel(job)}
+            </span>
+          ) : (
+            <span className="text-xs px-1 py-0.5 rounded font-medium bg-[var(--surface-base)] text-[var(--text-disabled)]">
+              届别待确认
+            </span>
+          )}
         </div>
         {facetTags(job).slice(0, 2).map((t) => (
           <span key={t} className="inline-block mt-1 mr-1 text-xs px-1.5 py-0.5 bg-[var(--surface-base)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">
@@ -604,6 +649,9 @@ function JobTableRow({
           )}
         </div>
         {positions && <div className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2">{positions}</div>}
+        {attestationSummary(job) && (
+          <div className="text-xs text-[var(--text-disabled)] mt-0.5">来源：{attestationSummary(job)}</div>
+        )}
       </td>
       <td className="px-3 py-2 align-top">{job.job_type || "校招"}</td>
       <td className="px-3 py-2 align-top">{cities.length ? cities.join("、") : "—"}</td>

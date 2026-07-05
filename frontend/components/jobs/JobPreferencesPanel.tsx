@@ -22,6 +22,8 @@ const EMPTY: JobPreferences = {
   target_roles: [],
   target_cities: [],
   job_types: ["实习", "校招"],
+  target_cohort: "27届",
+  include_unknown_cohort: true,
   company_wishlist: [],
   company_blocklist: [],
   extra_notes: "",
@@ -34,6 +36,8 @@ export default function JobPreferencesPanel({ onSaved }: { onSaved?: () => void 
   const [roles, setRoles] = useState("");
   const [cities, setCities] = useState("");
   const [types, setTypes] = useState("实习，校招");
+  const [cohort, setCohort] = useState("27届");
+  const [includeUnknown, setIncludeUnknown] = useState(true);
   const [wishlist, setWishlist] = useState("");
   const [blocklist, setBlocklist] = useState("");
   const [notes, setNotes] = useState("");
@@ -49,6 +53,8 @@ export default function JobPreferencesPanel({ onSaved }: { onSaved?: () => void 
         setRoles(joinList(p.target_roles));
         setCities(joinList(p.target_cities));
         setTypes(joinList(p.job_types) || "实习，校招");
+        setCohort(p.target_cohort || "27届");
+        setIncludeUnknown(p.include_unknown_cohort !== false);
         setWishlist(joinList(p.company_wishlist));
         setBlocklist(joinList(p.company_blocklist));
         setNotes(p.extra_notes || "");
@@ -71,6 +77,8 @@ export default function JobPreferencesPanel({ onSaved }: { onSaved?: () => void 
         target_roles: splitList(roles),
         target_cities: splitList(cities),
         job_types: splitList(types),
+        target_cohort: cohort.trim() || "27届",
+        include_unknown_cohort: includeUnknown,
         company_wishlist: splitList(wishlist),
         company_blocklist: splitList(blocklist),
         extra_notes: notes.trim(),
@@ -118,6 +126,19 @@ export default function JobPreferencesPanel({ onSaved }: { onSaved?: () => void 
                 value={cities}
                 onChange={(e) => setCities(e.target.value)}
               />
+            </label>
+            <label className="block">
+              <span className="text-[var(--text-secondary)] text-xs">目标届别</span>
+              <select className="mt-1 w-full input-field" value={cohort} onChange={(e) => setCohort(e.target.value)}>
+                <option value="27届">27届（2027 毕业）</option>
+                <option value="26届">26届</option>
+                <option value="25届">25届</option>
+                <option value="">不限</option>
+              </select>
+            </label>
+            <label className="block flex items-end gap-2 pb-1">
+              <input type="checkbox" checked={includeUnknown} onChange={(e) => setIncludeUnknown(e.target.checked)} />
+              <span className="text-[var(--text-secondary)] text-xs">筛选时包含「届别待确认」岗位</span>
             </label>
             <label className="block">
               <span className="text-[var(--text-secondary)] text-xs">岗位类型</span>

@@ -1,6 +1,8 @@
 import type { JobPosting } from "@/lib/types";
 
 const SOURCE_LABELS: Record<string, string> = {
+  browser_discovery: "浏览器检索",
+  wechat_discovery: "公众号挖掘",
   job_aggregator: "求职平台",
   company_campus: "企业官网",
   university_html: "高校就业网",
@@ -61,6 +63,20 @@ export function freshnessLabel(job: JobPosting): string {
   if (job.published_at) return `收录 ${formatDateShort(job.published_at)}`;
   if (job.crawled_at) return relativeTime(job.crawled_at);
   return "—";
+}
+
+export function attestationSummary(job: JobPosting): string {
+  const items = job.source_attestations || [];
+  if (!items.length) return "";
+  const labels = items.map((a) => a.channel || a.source).filter(Boolean);
+  return Array.from(new Set(labels)).slice(0, 4).join("、");
+}
+
+export function cohortLabel(job: JobPosting): string {
+  if (job.graduation_cohort) return job.graduation_cohort;
+  const tag = (job.tags || []).find((t) => t.startsWith("届别:"));
+  if (tag) return tag.replace("届别:", "");
+  return "";
 }
 
 export function isActionableJob(job: JobPosting): boolean {

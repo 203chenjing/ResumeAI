@@ -14,11 +14,16 @@ logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
 
-# (provider, hour, minute) — 按数据质量优先：GitHub 校招库（最快/最高 ok 率）→ 牛客/聚合 → 企业 → 高校
+# (provider, hour, minute) — 27 届专项源优先，错峰执行
 STAGGERED_PROVIDERS: list[tuple[str, int, int]] = [
+    ("browser_discovery", 5, 40),
+    ("wechat_discovery", 5, 45),
     ("github_joblist", 5, 50),
+    ("early_batch", 5, 55),
     ("job_aggregator", 6, 0),
+    ("search_discovery", 6, 15),
     ("company_campus", 7, 0),
+    ("campus_patrol", 7, 15),
     ("university_html", 7, 30),
 ]
 

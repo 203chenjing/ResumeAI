@@ -383,12 +383,21 @@ export const api = {
 
   getJobFeed(
     client_id: string,
-    params?: { source?: string; job_type?: string; work_city?: string; include_weak?: boolean }
+    params?: {
+      source?: string;
+      job_type?: string;
+      work_city?: string;
+      graduation_cohort?: string;
+      include_unknown_cohort?: boolean;
+      include_weak?: boolean;
+    }
   ) {
     const q = new URLSearchParams();
     if (params?.source) q.set("source", params.source);
     if (params?.job_type) q.set("job_type", params.job_type);
     if (params?.work_city) q.set("work_city", params.work_city);
+    if (params?.graduation_cohort) q.set("graduation_cohort", params.graduation_cohort);
+    if (params?.include_unknown_cohort === false) q.set("include_unknown_cohort", "false");
     if (params?.include_weak === false) q.set("include_weak", "false");
     const qs = q.toString();
     return request<ApiResponse<{ jobs: JobPosting[]; meta?: JobFeedMeta; digest?: JobDigest | null }>>(
@@ -418,7 +427,7 @@ export const api = {
     });
   },
 
-  crawlJobs(client_id: string, providers?: string[]) {
+  crawlJobs(client_id: string, providers?: string[] | null) {
     return request<
       ApiResponse<{
         status?: string;
@@ -452,12 +461,46 @@ export const api = {
     });
   },
 
+  browserDiscoverJobs(client_id: string) {
+    return request<
+      ApiResponse<{
+        steps: Array<{ step: number; name: string; status: string; detail: string; count: number }>;
+        new_count: number;
+        total: number;
+        jobs: JobPosting[];
+        meta?: JobFeedMeta;
+        cross_verify?: { cross_verified?: number };
+      }>
+    >("/api/jobs/browser-discover", {
+      method: "POST",
+      body: JSON.stringify({ client_id }),
+    });
+  },
+
+  wechatDiscoverJobs(client_id: string) {
+    return request<
+      ApiResponse<{
+        steps: Array<{ step: number; name: string; status: string; detail: string; count: number }>;
+        new_count: number;
+        total: number;
+        jobs: JobPosting[];
+        meta?: JobFeedMeta;
+        cross_verify?: { cross_verified?: number };
+      }>
+    >("/api/jobs/wechat-discover", {
+      method: "POST",
+      body: JSON.stringify({ client_id }),
+    });
+  },
+
   getCrawlStatus(client_id: string) {
     return request<
       ApiResponse<{
         status: string;
         message?: string;
         progress?: string;
+        provider_index?: number;
+        provider_total?: number;
         new_count?: number;
         total?: number;
         report?: Array<Record<string, unknown>>;
@@ -499,6 +542,35 @@ export const api = {
         meta?: JobFeedMeta;
       }>
     >("/api/jobs/organize", {
+      method: "POST",
+      body: JSON.stringify({ client_id }),
+    });
+  },
+
+  crossVerifyJobFeed(client_id: string) {
+    return request<
+      ApiResponse<{
+        before: number;
+        after: number;
+        cross_verified: number;
+        jobs: JobPosting[];
+        meta?: JobFeedMeta;
+      }>
+    >("/api/jobs/cross-verify", {
+      method: "POST",
+      body: JSON.stringify({ client_id }),
+    });
+  },
+    return request<
+      ApiResponse<{
+        total: number;
+        cohort_27: number;
+        cohort_26: number;
+        unknown: number;
+        jobs: JobPosting[];
+        meta?: JobFeedMeta;
+      }>
+    >("/api/jobs/backfill-cohort", {
       method: "POST",
       body: JSON.stringify({ client_id }),
     });

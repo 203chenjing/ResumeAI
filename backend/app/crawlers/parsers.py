@@ -493,6 +493,102 @@ def parse_bytedance_campus(page, source: dict) -> list[JobPosting]:
     return jobs[:50]
 
 
+def parse_early_batch_html(
+    html: str,
+    *,
+    source_id: str,
+    source_name: str,
+    channel: str,
+    base_url: str,
+    tags: list[str] | None = None,
+    max_items: int = 60,
+) -> list[JobPosting]:
+    """解析 27 届提前批汇总页（企业名 + 官方投递链接）。"""
+    from bs4 import BeautifulSoup
+
+    jobs: list[JobPosting] = []
+    seen: set[str] = set()
+    soup = BeautifulSoup(html or "", "lxml")
+    row_tags = list(tags or ["27届", "提前批", "校招"])
+
+    campus_hints = (
+        "campus",
+        "jobs.",
+        "join.",
+        "talent.",
+        "careers.",
+        "zhaopin.",
+        "recruit",
+        "campus-recruitment",
+        "zhiye.com/campus",
+    )
+    blocked_hosts = (
+        "resumemakeroffer.com",
+        "zhipin.com",
+        "liepin.com",
+        "51job.com",
+        "javascript:",
+        "beian.miit.gov.cn",
+    )
+    skip_text = ("登录", "注册", "首页", "关于", "隐私", "备案", "关注", "微博", "知乎", "小红书")
+
+    def _add(company: str, href: str, role: str = "27届提前批") -> None:
+        company = " ".join((company or "").split()).strip()
+        href = (href or "").strip()
+        if not href.startswith("http") or len(company) < 2:
+            return
+        if any(x in href for x in blocked_hosts):
+            return
+        if not any(h in href.lower() for h in campus_hints):
+            return
+        if any(x in company for x in skip_text):
+            return
+        key = f"{company}:{href.split('?')[0]}"
+        if key in seen:
+            return
+        seen.add(key)
+        jobs.append(
+            JobPosting(
+                id=_job_id(source_id, key),
+                company=company[:60],
+                role=role[:120],
+                source="early_batch",
+                jd_text=f"{company} 2027届提前批 官方投递",
+                jd_url=href,
+                channel=channel,
+                tags=row_tags,
+                source_site=source_id,
+                job_type="提前批",
+                legitimacy="likely",
+            )
+        )
+
+    for span in soup.select("[data-go]"):
+        href = (span.get("data-go") or "").strip()
+        name_el = span.select_one(".cr-co-name")
+        company = name_el.get_text(strip=True) if name_el else ""
+        if not company:
+            note = span.select_one(".cr-co-note")
+            company = (note.get_text(strip=True) if note else "").split(".")[0]
+        _add(company, href)
+        if len(jobs) >= max_items:
+            return jobs
+
+    for a in soup.find_all("a", href=True):
+        href = (a.get("href") or "").strip()
+        text = " ".join(a.get_text(" ", strip=True).split())
+        if not href.startswith("http") or len(text) < 2 or len(text) > 40:
+            continue
+        if any(x in href for x in blocked_hosts):
+            continue
+        if any(x in text for x in skip_text):
+            continue
+        _add(text, href)
+        if len(jobs) >= max_items:
+            break
+    return jobs
+
+
 async def parse_source_page(
     fetcher,
     source: dict,
@@ -520,7 +616,7 @@ async def parse_source_page(
     pw_wait_ms = int(source.get("wait_ms", 3000))
 
     if parser == "bytedance_campus":
-        if not ignore_robots and not fetcher._allowed(url):
+        if not ignore_robots and not await fetcher._allowed(url):
             raise PermissionError(f"robots.txt disallows: {url}")
         jobs = await fetcher.run_on_page(
             url,
@@ -535,7 +631,7 @@ async def parse_source_page(
         return attach_source_meta(jobs, source)
 
     if parser in ("nowcoder_schedule", "yingjiesheng_list"):
-        if not ignore_robots and not fetcher._allowed(url):
+        if not ignore_robots and not await fetcher._allowed(url):
             raise PermissionError(f"robots.txt disallows: {url}")
         fn = parse_nowcoder_schedule if parser == "nowcoder_schedule" else parse_yingjiesheng_list
         mode = "nowcoder" if parser == "nowcoder_schedule" else "yingjiesheng"

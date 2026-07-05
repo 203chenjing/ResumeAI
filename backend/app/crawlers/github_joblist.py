@@ -10,6 +10,7 @@ import logging
 import re
 import uuid
 
+import asyncio
 import httpx
 
 from app.crawlers.base import CrawlerProvider, JobPosting
@@ -17,6 +18,29 @@ from app.crawlers.fetcher import CrawlFetcher
 from app.services.job_validator import is_china_location
 
 logger = logging.getLogger(__name__)
+
+GH_MIRROR_PREFIXES = (
+    "",
+    "https://ghfast.top/",
+)
+
+
+async def _get_with_retry(http: httpx.AsyncClient, url: str, *, retries: int = 3) -> httpx.Response:
+    last_err: Exception | None = None
+    for attempt in range(retries):
+        for prefix in GH_MIRROR_PREFIXES:
+            target = url if not prefix else f"{prefix}{url}"
+            try:
+                resp = await http.get(target)
+                resp.raise_for_status()
+                if len(resp.text) > 50:
+                    return resp
+            except Exception as e:
+                last_err = e
+                logger.debug("github fetch failed %s attempt=%s: %s", target[:70], attempt + 1, e)
+        if attempt < retries - 1:
+            await asyncio.sleep(1.5 * (attempt + 1))
+    raise last_err or RuntimeError(f"github fetch failed: {url[:80]}")
 
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,4}\s+(.*\S)\s*$")
@@ -170,6 +194,7 @@ def _parse_markdown_table(md: str, source: dict, china_only: bool = False) -> li
                 locations=locations,
                 referral_code=referral,
                 legitimacy="trusted",
+                source_site=str(source.get("id") or ""),
             )
         )
         if len(jobs) >= max_items:
@@ -218,6 +243,7 @@ def _parse_json_listings(payload: str, source: dict, china_only: bool = False) -
                 tags=list(base_tags),
                 locations=locs[:6],
                 legitimacy="trusted",
+                source_site=str(source.get("id") or ""),
             )
         )
         if len(jobs) >= max_items:
@@ -241,7 +267,7 @@ class GithubJoblistProvider(CrawlerProvider):
         ua = "ResumeAI-Crawler/1.0 (+github joblist consumer)"
         jobs: list[JobPosting] = []
         async with httpx.AsyncClient(
-            timeout=20.0, follow_redirects=True, headers={"User-Agent": ua}
+            timeout=45.0, follow_redirects=True, headers={"User-Agent": ua}
         ) as http:
             for source in config.get("sources") or []:
                 if source.get("enabled") is False:
@@ -252,8 +278,7 @@ class GithubJoblistProvider(CrawlerProvider):
                 sid = source.get("id", url)
                 source_china = bool(source.get("china_only", china_only))
                 try:
-                    resp = await http.get(url)
-                    resp.raise_for_status()
+                    resp = await _get_with_retry(http, url)
                     body = resp.text
                     if url.endswith(".json") or source.get("format") == "json":
                         items = _parse_json_listings(body, source, china_only=source_china)

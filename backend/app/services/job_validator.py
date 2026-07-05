@@ -163,6 +163,18 @@ JOB_TYPE_RULES = (
     ("社招", "社招"),
 )
 
+COHORT_EXPLICIT_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"27届|2027届|2027\s*届"), "27届"),
+    (re.compile(r"2027\s*年(?:及以后)?(?:毕业|届)"), "27届"),
+    (re.compile(r"面向\s*2027|2027届毕业生|2027\s*graduate", re.I), "27届"),
+    (re.compile(r"26届|2026届|2026\s*届"), "26届"),
+    (re.compile(r"25届|2025届|2025\s*届"), "25届"),
+    (re.compile(r"28届|2028届|2028\s*届"), "28届"),
+)
+
+GITHUB_2026_SOURCE_IDS = frozenset({"campus2026-cn", "0voice-spring", "speedyapply-intl"})
+GITHUB_2027_SOURCE_IDS = frozenset({"2027-ai-cn", "2027-swe-cn"})
+
 
 def _clean(s: str) -> str:
     return " ".join((s or "").split()).strip()
@@ -216,6 +228,70 @@ def infer_job_type(text: str) -> str:
         if kw in t:
             return label
     return "校招"
+
+
+def _job_text_blob(job: dict) -> str:
+    return " ".join(
+        filter(
+            None,
+            [
+                job.get("company", ""),
+                job.get("role", ""),
+                job.get("title", ""),
+                job.get("jd_text", ""),
+                job.get("job_type", ""),
+                " ".join(job.get("tags") or []),
+            ],
+        )
+    )
+
+
+def extract_graduation_cohort(job: dict) -> tuple[str, str]:
+    """返回 (graduation_cohort, cohort_confidence)。
+
+    confidence: explicit | inferred | unknown
+    """
+    blob = _job_text_blob(job)
+    for pattern, label in COHORT_EXPLICIT_RULES:
+        if pattern.search(blob):
+            return label, "explicit"
+
+    source = job.get("source") or ""
+    source_site = (job.get("source_site") or "").strip()
+    channel = job.get("channel") or ""
+    tags_blob = " ".join(job.get("tags") or [])
+    if "27届" in tags_blob or "2027" in tags_blob:
+        return "27届", "explicit"
+    if source == "early_batch":
+        return "27届", "explicit"
+    if source in ("search_discovery", "browser_discovery", "wechat_discovery"):
+        return "27届", "inferred"
+    if source == "github_joblist":
+        if source_site in GITHUB_2027_SOURCE_IDS or "2027" in source_site or "2027" in channel:
+            return "27届", "inferred"
+        if (
+            source_site in GITHUB_2026_SOURCE_IDS
+            or "2026" in source_site
+            or "campus2026" in source_site
+            or channel in ("GitHub校招仓库",)
+            or ("GitHub" in channel and "2027" not in channel)
+        ):
+            return "26届", "inferred"
+    if source == "campus_patrol" and ("27" in blob or "2027" in blob):
+        return "27届", "explicit"
+    return "", "unknown"
+
+
+def apply_graduation_cohort(job: dict) -> dict:
+    cohort, confidence = extract_graduation_cohort(job)
+    out = dict(job)
+    out["graduation_cohort"] = cohort
+    out["cohort_confidence"] = confidence
+    tags = [t for t in (out.get("tags") or []) if not str(t).startswith("届别:")]
+    if cohort:
+        tags.insert(0, f"届别:{cohort}")
+    out["tags"] = tags[:12]
+    return out
 
 
 def extract_published_at(text: str) -> str:
@@ -406,7 +482,7 @@ def _validate_trusted(normalized: dict) -> dict:
     out["validation_status"] = status
     out["validation_issues"] = issues
     out["tags"] = build_tags(out)
-    return out
+    return apply_graduation_cohort(out)
 
 
 def validate_job(job: dict) -> dict:
@@ -526,4 +602,4 @@ def validate_job(job: dict) -> dict:
     out["validation_status"] = status
     out["validation_issues"] = issues
     out["tags"] = build_tags(out)
-    return out
+    return apply_graduation_cohort(out)

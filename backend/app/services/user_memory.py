@@ -6,6 +6,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "user_memory"
+CANONICAL_KB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "knowledge" / "简历数据库.md"
 DEFAULT_CLIENT = "default"
 
 DEFAULT_MEMORY = {
@@ -35,21 +36,46 @@ def _path(client_id: str) -> Path:
     return DATA_DIR / f"{safe}.json"
 
 
+def _load_canonical_kb() -> str:
+    if CANONICAL_KB_PATH.is_file():
+        try:
+            text = CANONICAL_KB_PATH.read_text(encoding="utf-8-sig").strip()
+            return text
+        except Exception as e:
+            logger.warning("read canonical kb failed: %s", e)
+    return ""
+
+
 def load_memory(client_id: str = DEFAULT_CLIENT) -> dict:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     path = _path(client_id)
+    use_canonical = client_id == DEFAULT_CLIENT
     if not path.exists():
-        return dict(DEFAULT_MEMORY)
+        merged = dict(DEFAULT_MEMORY)
+        if use_canonical:
+            kb = _load_canonical_kb()
+            if kb:
+                merged["knowledge_base_md"] = kb
+        return merged
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         merged = dict(DEFAULT_MEMORY)
         merged.update(data)
         if "preferences" in data:
             merged["preferences"] = {**DEFAULT_MEMORY["preferences"], **data["preferences"]}
+        if use_canonical and not (merged.get("knowledge_base_md") or "").strip():
+            kb = _load_canonical_kb()
+            if kb:
+                merged["knowledge_base_md"] = kb
         return merged
     except Exception as e:
         logger.warning("load_memory failed: %s", e)
-        return dict(DEFAULT_MEMORY)
+        merged = dict(DEFAULT_MEMORY)
+        if use_canonical:
+            kb = _load_canonical_kb()
+            if kb:
+                merged["knowledge_base_md"] = kb
+        return merged
 
 
 def save_memory(client_id: str, payload: dict) -> dict:

@@ -14,12 +14,14 @@ export function CrawlStatusLine() {
 export function CrawlStatusChip() {
   const status = useCrawlStore((s) => s.status);
   const progress = useCrawlStore((s) => s.progress);
+  const partialTotal = useCrawlStore((s) => s.partialTotal);
   const error = useCrawlStore((s) => s.error);
   const dismiss = useCrawlStore((s) => s.dismiss);
 
   if (status === "idle") return null;
 
   if (status === "running") {
+    const label = partialTotal > 0 ? `更新中 · ${partialTotal} 条` : "岗位更新中";
     return (
       <Link
         href={ROUTES.jobs}
@@ -28,7 +30,7 @@ export function CrawlStatusChip() {
         aria-live="polite"
         title={progress || copy.crawl.running}
       >
-        <span className="truncate">岗位库更新中</span>
+        <span className="truncate">{label}</span>
       </Link>
     );
   }

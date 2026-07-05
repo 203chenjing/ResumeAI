@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -10,7 +11,8 @@ from app.crawlers.crawl_config import get_provider_config, load_crawl_config
 from app.crawlers.fetcher import CrawlFetcher
 from app.crawlers.registry import PROVIDERS
 from app.services.job_ai_enrichment import enrich_jobs
-from app.services.job_dedup import deduplicate_jobs, is_duplicate, register_fingerprint
+from app.services.job_cross_verify import cross_verify_jobs
+from app.services.job_dedup import is_duplicate, register_fingerprint
 from app.services.job_store import MAX_FEED_SIZE, feed_meta, list_jobs, mark_unseen_stale, save_all
 from app.services.job_validator import validate_job
 
@@ -21,15 +23,47 @@ __all__ = [
     "dedupe_feed",
     "organize_feed",
     "crawl_all",
+    "crawl_comprehensive",
+    "cross_verify_feed",
+    "all_enabled_providers",
+    "merge_fetched_jobs",
     "QUICK_CRAWL_PROVIDERS",
     "FULL_CRAWL_PROVIDERS",
 ]
 
 logger = logging.getLogger(__name__)
 
-# 快速刷新：结构化源优先，少 Playwright 噪声
-QUICK_CRAWL_PROVIDERS = ["github_joblist", "ats_board", "job_aggregator"]
-FULL_CRAWL_PROVIDERS = QUICK_CRAWL_PROVIDERS + ["company_campus", "university_html"]
+# 快速刷新：结构化源优先，27 届专项源靠前
+QUICK_CRAWL_PROVIDERS = ["github_joblist", "early_batch", "job_aggregator", "search_discovery"]
+FULL_CRAWL_PROVIDERS = QUICK_CRAWL_PROVIDERS + ["company_campus", "campus_patrol", "university_html"]
+
+# 全渠道抓取顺序（含可选 provider）
+ALL_PROVIDER_ORDER = [
+    "browser_discovery",
+    "wechat_discovery",
+    "github_joblist",
+    "early_batch",
+    "job_aggregator",
+    "search_discovery",
+    "company_campus",
+    "campus_patrol",
+    "university_html",
+    "ats_board",
+    "wechat_article",
+]
+
+
+def all_enabled_providers() -> list[str]:
+    cfg = load_crawl_config()
+    providers = cfg.get("providers") or {}
+    out: list[str] = []
+    for name in ALL_PROVIDER_ORDER:
+        pconf = providers.get(name)
+        if not pconf:
+            continue
+        if pconf.get("enabled", True):
+            out.append(name)
+    return out
 
 
 def _is_blocked_domain(url: str, blocked: set[str]) -> bool:
@@ -100,9 +134,12 @@ def _merge_core(
         prepared_new.append(job)
 
     merged = prepared_new + _enrich_existing(existing)
-    deduped, dedup_stats = deduplicate_jobs(merged)
-    final = deduped[:MAX_FEED_SIZE]
-    stats.update(dedup_stats)
+    cross_merged, cross_stats = cross_verify_jobs(merged)
+    final = cross_merged[:MAX_FEED_SIZE]
+    stats.update(cross_stats)
+    stats["duplicates_removed"] = max(0, len(merged) - len(cross_merged))
+    stats["unique"] = len(cross_merged)
+    stats["total_in"] = len(merged)
     stats["saved"] = len(final)
     return final, prepared_new, stats
 
@@ -118,6 +155,8 @@ def _sort_jobs_by_quality(jobs: list[dict]) -> list[dict]:
     return sorted(
         jobs,
         key=lambda j: (
+            0 if j.get("cross_verified") else 1,
+            -int(j.get("verification_score") or 0),
             0 if j.get("validation_status") == "ok" else 1,
             0 if j.get("legitimacy") == "trusted" or j.get("source") in {"github_joblist", "ats_board"} else 1,
             -_ts(j),
@@ -182,27 +221,47 @@ def add_job(client_id: str, job: dict) -> dict:
     return prepared
 
 
-def dedupe_feed(client_id: str) -> dict:
-    existing = list_jobs(client_id, include_weak=True, include_expired=True)
-    enriched = _enrich_existing(existing)
-    deduped, stats = deduplicate_jobs(enriched)
-    valid_only = [j for j in deduped if j.get("validation_status") != "invalid"]
-    final = _sort_jobs_by_quality(valid_only)[:MAX_FEED_SIZE]
-    save_all(client_id, final)
-    stats["invalid_removed"] = len(deduped) - len(valid_only)
-    stats["ok_count"] = sum(1 for j in final if j.get("validation_status") == "ok")
-    stats["weak_count"] = sum(1 for j in final if j.get("validation_status") == "weak")
-    return {"before": len(existing), "after": len(final), **stats}
-
-
-async def organize_feed(client_id: str) -> dict:
-    """去重 + 重校验 + AI 解析 weak 岗位 + 按质量排序。用户可见的「整理岗位库」。"""
+def cross_verify_feed(client_id: str) -> dict:
+    """对现有岗位库做多渠道交叉确认（不重新爬取）。"""
     existing = list_jobs(client_id, include_weak=True, include_expired=True)
     before = len(existing)
     enriched = _enrich_existing(existing)
-    deduped, dedup_stats = deduplicate_jobs(enriched)
-    invalid_count = sum(1 for j in deduped if j.get("validation_status") == "invalid")
-    candidates = [j for j in deduped if j.get("validation_status") != "invalid"]
+    merged, cross_stats = cross_verify_jobs(enriched)
+    final = _sort_jobs_by_quality(merged)[:MAX_FEED_SIZE]
+    save_all(client_id, final)
+    return {
+        "before": before,
+        "after": len(final),
+        "cross_verified": cross_stats.get("cross_verified", 0),
+        **cross_stats,
+        "jobs": final,
+        "meta": feed_meta(client_id),
+    }
+
+
+def dedupe_feed(client_id: str) -> dict:
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
+    before = len(existing)
+    enriched = _enrich_existing(existing)
+    merged, stats = cross_verify_jobs(enriched)
+    valid_only = [j for j in merged if j.get("validation_status") != "invalid"]
+    final = _sort_jobs_by_quality(valid_only)[:MAX_FEED_SIZE]
+    save_all(client_id, final)
+    stats["invalid_removed"] = len(merged) - len(valid_only)
+    stats["duplicates_removed"] = max(0, before - len(merged))
+    stats["ok_count"] = sum(1 for j in final if j.get("validation_status") == "ok")
+    stats["weak_count"] = sum(1 for j in final if j.get("validation_status") == "weak")
+    return {"before": before, "after": len(final), **stats}
+
+
+async def organize_feed(client_id: str) -> dict:
+    """去重 + 交叉确认 + AI 解析 weak 岗位 + 按质量排序。"""
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
+    before = len(existing)
+    enriched = _enrich_existing(existing)
+    cross_merged, cross_stats = cross_verify_jobs(enriched)
+    invalid_count = sum(1 for j in cross_merged if j.get("validation_status") == "invalid")
+    candidates = [j for j in cross_merged if j.get("validation_status") != "invalid"]
 
     ai_stats = {"ai_enriched": 0, "ai_tagged": 0, "ai_rejected": 0}
     if settings_deepseek_available() and candidates:
@@ -214,6 +273,7 @@ async def organize_feed(client_id: str) -> dict:
                 revalidated.append(prepared)
         candidates = revalidated
         invalid_count += ai_stats.get("ai_rejected", 0)
+        candidates, _ = cross_verify_jobs(candidates)
 
     final = _sort_jobs_by_quality(candidates)[:MAX_FEED_SIZE]
     save_all(client_id, final)
@@ -223,17 +283,41 @@ async def organize_feed(client_id: str) -> dict:
         "before": before,
         "after": len(final),
         "invalid_removed": invalid_count,
-        "duplicates_removed": dedup_stats.get("duplicates_removed", 0),
+        "duplicates_removed": max(0, before - len(cross_merged)),
+        "cross_verified": cross_stats.get("cross_verified", 0),
         "ok_count": ok_count,
         "weak_count": weak_count,
         "actionable": ok_count + weak_count,
         **ai_stats,
+        **cross_stats,
     }
+
+
+async def _append_provider_batch(
+    client_id: str,
+    batch_raw: list[dict],
+    existing: list[dict],
+    *,
+    blocked: set[str],
+    crawled_sources: set[str],
+) -> tuple[list[dict], list[dict], dict]:
+    """单源抓取后立即入库（不做全库 AI，供增量刷新）。"""
+    final, prepared_new, stats = _merge_core(client_id, batch_raw, existing, blocked=blocked)
+    final = _sort_jobs_by_quality(final)[:MAX_FEED_SIZE]
+    save_all(client_id, final)
+    stats["expired_marked"] = 0
+    if crawled_sources:
+        seen_ids = {j.get("id") for j in final if j.get("id")}
+        stats["expired_marked"] = mark_unseen_stale(client_id, seen_ids, sources=crawled_sources)
+    return final, prepared_new, stats
 
 
 async def crawl_all(
     client_id: str,
     providers: list[str] | None = None,
+    *,
+    incremental_save: bool = False,
+    on_progress: Callable[[dict], Awaitable[None] | None] | None = None,
 ) -> dict:
     cfg = load_crawl_config()
     compliance = cfg.get("compliance") or {}
@@ -245,26 +329,51 @@ async def crawl_all(
 
     existing = list_jobs(client_id, include_weak=True, include_expired=True)
     fetched_raw: list[dict] = []
+    all_new_jobs: list[dict] = []
     report: list[dict] = []
     crawled_sources: set[str] = set()
+    cumulative_new = 0
     fetcher = CrawlFetcher(compliance)
 
     try:
-        for name in names:
+        for idx, name in enumerate(names, start=1):
             provider = PROVIDERS.get(name)
             pconf = get_provider_config(name)
             if not provider:
                 report.append({"provider": name, "status": "skipped", "reason": "unknown provider"})
+                if on_progress:
+                    await on_progress(
+                        {
+                            "provider": name,
+                            "provider_index": idx,
+                            "total": len(existing),
+                            "new_count": cumulative_new,
+                            "report": list(report),
+                        }
+                    )
                 continue
             if not pconf.get("enabled", True):
                 report.append({"provider": name, "status": "skipped", "reason": "disabled in yaml"})
+                if on_progress:
+                    await on_progress(
+                        {
+                            "provider": name,
+                            "provider_index": idx,
+                            "total": len(existing),
+                            "new_count": cumulative_new,
+                            "report": list(report),
+                        }
+                    )
                 continue
 
             t0 = datetime.now()
+            batch_raw: list[dict] = []
             try:
                 fetched = await provider.fetch(pconf, fetcher)
                 for job in fetched:
-                    fetched_raw.append(job.to_dict())
+                    row = job.to_dict()
+                    batch_raw.append(row)
+                    fetched_raw.append(row)
                     crawled_sources.add(job.source)
 
                 report.append(
@@ -285,8 +394,47 @@ async def crawl_all(
                         "duration_ms": int((datetime.now() - t0).total_seconds() * 1000),
                     }
                 )
+
+            if incremental_save and batch_raw:
+                existing, new_jobs, _ = await _append_provider_batch(
+                    client_id,
+                    batch_raw,
+                    existing,
+                    blocked=blocked,
+                    crawled_sources=crawled_sources,
+                )
+                cumulative_new += len(new_jobs)
+                all_new_jobs.extend(new_jobs)
+            elif incremental_save and on_progress:
+                pass
+
+            if on_progress:
+                await on_progress(
+                    {
+                        "provider": name,
+                        "provider_index": idx,
+                        "total": len(existing),
+                        "new_count": cumulative_new,
+                        "report": list(report),
+                    }
+                )
     finally:
         await fetcher.close()
+
+    if incremental_save:
+        quality = {
+            "validated_ok": sum(1 for j in existing if j.get("validation_status") == "ok"),
+            "validated_weak": sum(1 for j in existing if j.get("validation_status") == "weak"),
+            "total_in": len(existing),
+            "saved": len(existing),
+        }
+        return {
+            "new_jobs": all_new_jobs,
+            "new_count": cumulative_new,
+            "total": len(existing),
+            "report": report,
+            "quality": quality,
+        }
 
     merged, new_jobs, quality = await _merge_and_save(
         client_id,
@@ -303,3 +451,33 @@ async def crawl_all(
         "report": report,
         "quality": quality,
     }
+
+
+async def merge_fetched_jobs(
+    client_id: str,
+    fetched_raw: list[dict],
+    *,
+    crawled_sources: set[str] | None = None,
+) -> dict:
+    """将已抓取原始岗位合并入库（供浏览器流水线等调用）。"""
+    cfg = load_crawl_config()
+    blocked = set((cfg.get("compliance") or {}).get("blocked_domains") or [])
+    existing = list_jobs(client_id, include_weak=True, include_expired=True)
+    merged, new_jobs, quality = await _merge_and_save(
+        client_id,
+        fetched_raw,
+        existing,
+        blocked=blocked,
+        crawled_sources=crawled_sources,
+    )
+    return {
+        "new_jobs": new_jobs,
+        "new_count": len(new_jobs),
+        "total": len(merged),
+        "quality": quality,
+    }
+
+
+async def crawl_comprehensive(client_id: str) -> dict:
+    """全渠道抓取：所有 enabled provider + 交叉确认入库。"""
+    return await crawl_all(client_id, all_enabled_providers(), incremental_save=True)

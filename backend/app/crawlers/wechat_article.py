@@ -5,15 +5,14 @@ import logging
 import re
 import uuid
 
-import httpx
-
 from app.crawlers.base import CrawlerProvider, JobPosting
 from app.crawlers.fetcher import CrawlFetcher
+from app.services.wechat_fetch import fetch_wechat_article
 
 logger = logging.getLogger(__name__)
 
 
-MP_WECHAT_RE = re.compile(r"https?://mp\.weixin\.qq\.com/s/[A-Za-z0-9_\-?=&%]+", re.I)
+MP_WECHAT_RE = re.compile(r"https?://mp\.weixin\.qq\.com/s(?:/[A-Za-z0-9_\-?=&%]+|\?[^\s\"'<>]+)", re.I)
 
 
 def extract_wechat_urls(html: str) -> list[str]:
@@ -98,43 +97,17 @@ class WechatArticleProvider(CrawlerProvider):
         if not url.strip():
             return None
 
-        title = "公众号校招资讯"
-        description = ""
-        final_url = url
-
         try:
-            if fetcher:
-                page = await fetcher.fetch(url, ignore_robots=True)
-                html = page.html
-                final_url = page.url
-            else:
-                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
-                    resp = await http.get(url, headers={"User-Agent": "ResumeAI-Crawler/1.0"})
-                    html = resp.text
-                    final_url = str(resp.url)
-
-            t = re.search(
-                r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
-                html,
-                re.I,
-            )
-            d = re.search(
-                r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
-                html,
-                re.I,
-            )
-            if t:
-                title = t.group(1).strip()
-            elif re.search(r"<title>([^<]+)</title>", html, re.I):
-                title = re.search(r"<title>([^<]+)</title>", html, re.I).group(1).strip()
-            if d:
-                description = d.group(1).strip()
-            if not description:
-                description = re.sub(r"<[^>]+>", " ", html)
-                description = re.sub(r"\s+", " ", description).strip()[:1200]
+            article = await fetch_wechat_article(url)
+            title = article.title or "公众号校招资讯"
+            description = article.content_text or article.description or title
+            final_url = article.url or url
+            jd_url = article.apply_links[0] if article.apply_links else final_url
         except Exception as e:
             logger.warning("wechat ingest failed %s: %s", url, e)
+            title = "公众号校招资讯"
             description = f"用户订阅文章：{url}"
+            jd_url = url
 
         company = _guess_company(title + " " + description)
         return JobPosting(
@@ -143,7 +116,7 @@ class WechatArticleProvider(CrawlerProvider):
             role=title[:100],
             source=self.name,
             jd_text=description or title,
-            jd_url=final_url,
+            jd_url=jd_url,
             channel="公众号",
             tags=["待审核", "L4", "wechat"],
         )

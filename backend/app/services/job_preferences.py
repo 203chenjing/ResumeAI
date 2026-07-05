@@ -7,6 +7,8 @@ DEFAULT_JOB_PREFERENCES = {
     "target_roles": [],
     "target_cities": [],
     "job_types": ["实习", "校招"],
+    "target_cohort": "27届",
+    "include_unknown_cohort": True,
     "company_wishlist": [],
     "company_blocklist": [],
     "extra_notes": "",
@@ -26,6 +28,10 @@ def load_job_preferences(client_id: str) -> dict:
                 out[key] = [str(x).strip() for x in val if str(x).strip()]
             elif isinstance(val, str) and val.strip():
                 out[key] = [p.strip() for p in val.replace("，", ",").split(",") if p.strip()]
+        elif key == "include_unknown_cohort":
+            out[key] = bool(val) if isinstance(val, bool) else str(val).lower() not in ("0", "false", "no")
+        elif key == "target_cohort":
+            out[key] = str(val).strip() or DEFAULT_JOB_PREFERENCES["target_cohort"]
         else:
             out[key] = str(val).strip()
     return out

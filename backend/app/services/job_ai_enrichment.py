@@ -27,7 +27,8 @@ EXTRACT_SYSTEM = """你是校招岗位结构化解析助手。输入为若干条
       "company": "用人单位",
       "role": "岗位或批次名",
       "cities": ["北京"],
-      "job_type": "秋招|春招|实习|校招",
+      "job_type": "秋招|春招|实习|校招|提前批",
+      "graduation_cohort": "27届|26届|25届|28届|",
       "deadline": "",
       "summary": "一句话摘要≤40字",
       "tags": ["职能标签", "行业标签"],
@@ -181,6 +182,9 @@ def _merge_extract(job: dict, item: dict) -> dict:
             out["location"] = out["locations"][0]
     if item.get("job_type"):
         out["job_type"] = str(item["job_type"])[:20]
+    if item.get("graduation_cohort"):
+        out["graduation_cohort"] = str(item["graduation_cohort"])[:10]
+        out["cohort_confidence"] = "explicit"
     if item.get("deadline"):
         out["deadline"] = str(item["deadline"])[:40]
     if item.get("summary"):
@@ -195,7 +199,9 @@ def _merge_extract(job: dict, item: dict) -> dict:
         out["validation_issues"] = []
     elif out.get("validation_status") != "invalid":
         out["validation_status"] = "weak"
-    return out
+    from app.services.job_validator import apply_graduation_cohort
+
+    return apply_graduation_cohort(out)
 
 
 def _merge_tags(job: dict, item: dict) -> dict:

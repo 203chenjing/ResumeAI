@@ -103,7 +103,9 @@ def post_json(client: httpx.Client, path: str, payload: dict, timeout: float = 1
 def main() -> int:
     report: dict = {"steps": [], "issues": [], "passed": True}
     pdf_path = FIXTURES / "sample_resume.pdf"
-    kb_path = Path(__file__).resolve().parents[2] / "knowledge" / "简历数据库.example.md"
+    kb_path = Path(__file__).resolve().parents[2] / "knowledge" / "简历数据库.md"
+    if not kb_path.is_file():
+        kb_path = Path(__file__).resolve().parents[2] / "knowledge" / "简历数据库.example.md"
     knowledge = kb_path.read_text(encoding="utf-8")
 
     print("=== 1. 生成测试 PDF ===")

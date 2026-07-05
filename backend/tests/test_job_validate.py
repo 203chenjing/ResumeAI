@@ -97,6 +97,38 @@ def test_normalize_nowcoder_splits_company_role():
     assert job["role"] == "27届实习"
     assert job.get("published_at", "").endswith("-06-15")
     assert job["job_type"] == "实习"
+    assert job["graduation_cohort"] == "27届"
+    assert job["cohort_confidence"] == "explicit"
+
+
+def test_graduation_cohort_inferred_from_github_channel():
+    job = validate_job(
+        {
+            "company": "腾讯",
+            "role": "产品经理",
+            "jd_text": "腾讯 产品经理",
+            "jd_url": "https://join.qq.com/1",
+            "source": "github_joblist",
+            "channel": "GitHub校招仓库",
+        }
+    )
+    assert job["graduation_cohort"] == "26届"
+    assert job["cohort_confidence"] == "inferred"
+
+
+def test_graduation_cohort_early_batch():
+    job = validate_job(
+        {
+            "company": "腾讯",
+            "role": "27届提前批",
+            "jd_text": "腾讯 2027届提前批",
+            "jd_url": "https://join.qq.com/",
+            "source": "early_batch",
+            "source_site": "resumemakeroffer-2027",
+        }
+    )
+    assert job["graduation_cohort"] == "27届"
+    assert "届别:27届" in job["tags"]
 
 
 def test_validate_rejects_bjbys_news():

@@ -65,6 +65,18 @@ def _init_db(conn: sqlite3.Connection) -> None:
     for col in ("referral_code", "legitimacy"):
         if col not in existing_cols:
             conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT DEFAULT ''")
+    for col in ("graduation_cohort", "cohort_confidence"):
+        if col not in existing_cols:
+            conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT DEFAULT ''")
+    for col in ("cross_verified", "verification_score", "verification_source_count"):
+        if col not in existing_cols:
+            conn.execute(
+                f"ALTER TABLE jobs ADD COLUMN {col} {'INTEGER' if col != 'verification_score' else 'INTEGER'} DEFAULT 0"
+            )
+    if "source_attestations" not in existing_cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN source_attestations TEXT DEFAULT '[]'")
+    if "alternate_jd_urls" not in existing_cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN alternate_jd_urls TEXT DEFAULT '[]'")
     conn.commit()
 
 
@@ -144,6 +156,13 @@ def _row_to_job(row: sqlite3.Row) -> dict:
         "ai_tags": _loads_list(row["ai_tags"]),
         "referral_code": (row["referral_code"] if "referral_code" in row.keys() else "") or "",
         "legitimacy": (row["legitimacy"] if "legitimacy" in row.keys() else "") or "",
+        "graduation_cohort": (row["graduation_cohort"] if "graduation_cohort" in row.keys() else "") or "",
+        "cohort_confidence": (row["cohort_confidence"] if "cohort_confidence" in row.keys() else "") or "",
+        "cross_verified": bool(row["cross_verified"]) if "cross_verified" in row.keys() else False,
+        "verification_score": int(row["verification_score"] or 0) if "verification_score" in row.keys() else 0,
+        "verification_source_count": int(row["verification_source_count"] or 0) if "verification_source_count" in row.keys() else 0,
+        "source_attestations": _loads_list(row["source_attestations"] if "source_attestations" in row.keys() else "[]"),
+        "alternate_jd_urls": _loads_list(row["alternate_jd_urls"] if "alternate_jd_urls" in row.keys() else "[]"),
     }
 
 
@@ -173,8 +192,10 @@ def _upsert_one(conn: sqlite3.Connection, client_id: str, job: dict, *, now: str
             client_id, id, company, role, source, jd_text, jd_url, location, deadline,
             channel, tags, city, locations, crawled_at, published_at, job_type, source_site,
             validation_status, validation_issues, status, last_seen_at, miss_count, ai_summary, ai_tags,
-            referral_code, legitimacy
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            referral_code, legitimacy, graduation_cohort, cohort_confidence,
+            cross_verified, verification_score, verification_source_count,
+            source_attestations, alternate_jd_urls
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(client_id, id) DO UPDATE SET
             company=excluded.company,
             role=excluded.role,
@@ -199,7 +220,14 @@ def _upsert_one(conn: sqlite3.Connection, client_id: str, job: dict, *, now: str
             ai_summary=CASE WHEN excluded.ai_summary != '' THEN excluded.ai_summary ELSE jobs.ai_summary END,
             ai_tags=CASE WHEN excluded.ai_tags != '[]' THEN excluded.ai_tags ELSE jobs.ai_tags END,
             referral_code=CASE WHEN excluded.referral_code != '' THEN excluded.referral_code ELSE jobs.referral_code END,
-            legitimacy=CASE WHEN excluded.legitimacy != '' THEN excluded.legitimacy ELSE jobs.legitimacy END
+            legitimacy=CASE WHEN excluded.legitimacy != '' THEN excluded.legitimacy ELSE jobs.legitimacy END,
+            graduation_cohort=CASE WHEN excluded.graduation_cohort != '' THEN excluded.graduation_cohort ELSE jobs.graduation_cohort END,
+            cohort_confidence=CASE WHEN excluded.cohort_confidence != '' THEN excluded.cohort_confidence ELSE jobs.cohort_confidence END,
+            cross_verified=excluded.cross_verified,
+            verification_score=excluded.verification_score,
+            verification_source_count=excluded.verification_source_count,
+            source_attestations=excluded.source_attestations,
+            alternate_jd_urls=excluded.alternate_jd_urls
         """,
         (
             client_id,
@@ -228,6 +256,13 @@ def _upsert_one(conn: sqlite3.Connection, client_id: str, job: dict, *, now: str
             json.dumps(job.get("ai_tags") or job.get("tags") or [], ensure_ascii=False),
             job.get("referral_code", ""),
             job.get("legitimacy", ""),
+            job.get("graduation_cohort", ""),
+            job.get("cohort_confidence", ""),
+            1 if job.get("cross_verified") else 0,
+            int(job.get("verification_score") or 0),
+            int(job.get("verification_source_count") or 0),
+            json.dumps(job.get("source_attestations") or [], ensure_ascii=False),
+            json.dumps(job.get("alternate_jd_urls") or [], ensure_ascii=False),
         ),
     )
 
@@ -238,6 +273,8 @@ def list_jobs(
     *,
     job_type: str | None = None,
     work_city: str | None = None,
+    graduation_cohort: str | None = None,
+    include_unknown_cohort: bool = True,
     include_invalid: bool = False,
     include_weak: bool = True,
     include_expired: bool = False,
@@ -255,6 +292,13 @@ def list_jobs(
         if job_type:
             clauses.append("job_type = ?")
             params.append(job_type)
+        if graduation_cohort:
+            if include_unknown_cohort:
+                clauses.append("(graduation_cohort = ? OR graduation_cohort = '' OR graduation_cohort IS NULL)")
+                params.append(graduation_cohort)
+            else:
+                clauses.append("graduation_cohort = ?")
+                params.append(graduation_cohort)
         sql = f"SELECT * FROM jobs WHERE {' AND '.join(clauses)}"
         rows = conn.execute(sql, params).fetchall()
     finally:
@@ -379,11 +423,17 @@ def feed_meta(client_id: str) -> dict:
     types: dict[str, int] = {}
     sources: dict[str, int] = {}
     cities: dict[str, int] = {}
+    cohorts: dict[str, int] = {}
+    cross_verified_count = 0
     for j in jobs:
         jt = j.get("job_type") or "校招"
         types[jt] = types.get(jt, 0) + 1
         src = j.get("source") or "unknown"
         sources[src] = sources.get(src, 0) + 1
+        cohort = j.get("graduation_cohort") or "未知"
+        cohorts[cohort] = cohorts.get(cohort, 0) + 1
+        if j.get("cross_verified"):
+            cross_verified_count += 1
         for loc in j.get("locations") or []:
             cities[loc] = cities.get(loc, 0) + 1
     crawled = [j.get("crawled_at") for j in jobs if j.get("crawled_at")]
@@ -392,6 +442,8 @@ def feed_meta(client_id: str) -> dict:
         "job_types": types,
         "sources": sources,
         "work_cities": cities,
+        "graduation_cohorts": cohorts,
+        "cross_verified_count": cross_verified_count,
         "last_crawled_at": max(crawled) if crawled else "",
         "storage": "sqlite",
     }
@@ -403,14 +455,19 @@ def update_job_fields(client_id: str, job_id: str, fields: dict) -> None:
     allowed = {
         "company", "role", "jd_text", "tags", "locations", "location", "deadline",
         "job_type", "validation_status", "validation_issues", "ai_summary", "ai_tags",
+        "graduation_cohort", "cohort_confidence",
+        "cross_verified", "verification_score", "verification_source_count",
+        "source_attestations", "alternate_jd_urls",
     }
     sets = []
     params: list = []
     for k, v in fields.items():
         if k not in allowed:
             continue
-        if k in ("tags", "locations", "validation_issues", "ai_tags") and isinstance(v, list):
+        if k in ("tags", "locations", "validation_issues", "ai_tags", "source_attestations", "alternate_jd_urls") and isinstance(v, list):
             v = json.dumps(v, ensure_ascii=False)
+        if k == "cross_verified":
+            v = 1 if v else 0
         sets.append(f"{k} = ?")
         params.append(v)
     if not sets:

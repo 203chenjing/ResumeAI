@@ -52,6 +52,31 @@ def main() -> int:
 
                     jobs = parse_bytedance_campus(page, json.loads(sys.argv[7]))
                     out = {"jobs": [asdict(j) for j in jobs]}
+                elif mode == "search_ddg":
+                    max_results = int(sys.argv[7]) if len(sys.argv) > 7 else 8
+                    results = []
+                    for a in page.query_selector_all("a.result__a"):
+                        href = a.get_attribute("href") or ""
+                        title = (a.inner_text() or "").strip()
+                        if href.startswith("http") and title:
+                            results.append({"title": title[:200], "url": href})
+                        if len(results) >= max_results:
+                            break
+                    out = {"results": results}
+                elif mode == "search_bing":
+                    max_results = int(sys.argv[7]) if len(sys.argv) > 7 else 8
+                    results = []
+                    for li in page.query_selector_all("li.b_algo"):
+                        a = li.query_selector("h2 a")
+                        if not a:
+                            continue
+                        href = a.get_attribute("href") or ""
+                        title = (a.inner_text() or "").strip()
+                        if href.startswith("http") and title:
+                            results.append({"title": title[:200], "url": href})
+                        if len(results) >= max_results:
+                            break
+                    out = {"results": results}
                 else:
                     out = {"url": page.url, "html": page.content(), "text": page.inner_text("body")}
             finally:

@@ -249,13 +249,19 @@ export const copy = {
     organizeDone: (before: number, after: number, ok: number) =>
       `整理完成：${before} → ${after} 条，${ok} 条可投递`,
     refresh: "刷新岗位",
-    refreshFull: "完整刷新（含高校）",
+    refreshHint: "后台逐步更新，岗位会陆续出现在列表中",
+    crossVerified: (n: number) => `${n} 渠道确认`,
+    crossVerifiedBadge: "多渠道确认",
     syncedLocal: "已同步到本地岗位库",
     updateHistory: "最近更新记录",
     sourceHealthy: "岗位源可用",
     sourceDegraded: "部分源异常",
     sourcePartial: "部分源可用",
     hideWeakLabel: "只看可投递岗位",
+    cohortFilter: "目标届别",
+    cohortAll: "全部届别",
+    includeUnknownCohort: "含届别待确认",
+    cohortLabel: (c: string) => (c ? `${c}` : "届别待确认"),
     advanced: "高级设置",
     emptyTitle: "还没有匹配岗位",
     emptyHint: "试试放宽筛选，或刷新岗位列表",
@@ -274,6 +280,8 @@ export const copy = {
   },
   crawl: {
     running: "正在更新岗位",
+    runningDetail: (current: number, total: number, count: number) =>
+      `正在更新 (${current}/${total}) · 已收录 ${count} 条`,
     starting: "正在启动更新…",
     done: "岗位列表已更新",
     doneWithCount: (added: number, total: number, extra: string) =>
