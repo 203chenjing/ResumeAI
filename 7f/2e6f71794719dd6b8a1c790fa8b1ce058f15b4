@@ -1,0 +1,135 @@
+memory/MEMORY.md
+  s_a1e16e6130e300::t_bcaeb96adf215e 1-9
+backend/app/services/dynamic_agent.py
+  s_a1e16e6130e300::t_3c63b8697651c7 356-357
+  s_a1e16e6130e300::t_45afe8c4445e52 102-116
+  s_a1e16e6130e300::t_9452a32dc22c54 17-18,117-118
+  s_a1e16e6130e300::t_1f5ffaa0542501 217-218
+backend/app/config.py
+  s_a1e16e6130e300::t_099e2e0f0d2c76 46-52
+backend/app/routers/resume.py
+  s_a1e16e6130e300::t_2e5b94e2cbdab6 35-40
+backend/app/routers/memory.py
+  s_a1e16e6130e300::t_fd4f5149261f6f 1,6-7,20-24,41-81
+skills/resume-agent/SKILL.md
+  s_a1e16e6130e300::t_ae2a95ecc45224 121-122
+  s_a1e16e6130e300::t_6869ef6db163e3 83-96
+CLAUDE.md
+  s_a1e16e6130e300::t_125224809f4b12 1-46
+backend/app/services/job_digest.py
+  s_3e30ab43e55ff7::t_9359b490f97deb 99-111
+  s_3e30ab43e55ff7::t_6bc864e135b772 198-208
+frontend/lib/types.ts
+  s_3e30ab43e55ff7::t_d77dfd07cee8cb 153
+backend/app/services/working_memory.py
+  s_a1e16e6130e300::t_844c5e430534e9 1-68
+backend/app/crawlers/github_joblist.py
+  s_3e30ab43e55ff7::t_9b377a814e5fea 23-24,52-53
+  s_3e30ab43e55ff7::t_4c73dc96ff83e8 117,127-130,138,142-145
+  s_3e30ab43e55ff7::t_58439baeb2606e 116,122-126,131-134,136,139-141
+  s_3e30ab43e55ff7::t_dfba55c9c80555 169-170
+  s_3e30ab43e55ff7::t_8854962fabec65 188-189
+  s_3e30ab43e55ff7::t_e5af763dbafffe 195-198,209,213
+  s_3e30ab43e55ff7::t_4fbf8fa0ae6ab7 39-40,45-51
+frontend/components/jobs/JobsView.tsx
+  s_3e30ab43e55ff7::t_f1371fcc969244 67-68
+  s_3e30ab43e55ff7::t_14381249e9da4b 11,339-340
+  s_3e30ab43e55ff7::t_f98333bba35ed0 87-88
+  s_3e30ab43e55ff7::t_bbe93707e6d8ad 103
+  s_3e30ab43e55ff7::t_30f1a5e7cb7426 341-355
+  s_3e30ab43e55ff7::t_2048aaf50cd823 480-482
+backend/app/services/job_store.py
+  s_3e30ab43e55ff7::t_d24f012d0eecde 259-268
+  s_3e30ab43e55ff7::t_776af51dc496f1 222-223
+  s_3e30ab43e55ff7::t_7632c89ffc17be 9-10
+backend/app/services/memdir.py
+  s_a1e16e6130e300::t_b2ad29dd9dd3f9 1-219
+backend/app/services/session_memory.py
+  s_2728783a6d4cec::t_5d78d75eef7e59 1-77
+backend/app/services/job_graduation.py
+  s_3e30ab43e55ff7::t_e72770afeddc73 1-161
+docs/REFERENCE_REPOS.md
+  s_a1e16e6130e300::t_195a4f916dbba9 16-27
+  s_a1e16e6130e300::t_181b3e359eb549 33-35
+memory/topics/preferences.md
+  s_a1e16e6130e300::t_4e0e3660274aad 1-10
+README.md
+  s_a1e16e6130e300::t_9243357f14a7c0 154-156
+memory/topics/star-stories.md
+  s_a1e16e6130e300::t_2d34e01d8b15c0 1-8
+backend/app/services/job_validator.py
+  s_3e30ab43e55ff7::t_1be80acb5f6e96 476
+  s_3e30ab43e55ff7::t_5d9a237ae283ce 356
+  s_3e30ab43e55ff7::t_1bf7dc9ecaa114 7-8
+  s_3e30ab43e55ff7::t_35c1b988681edf 334-335
+docs/memory-architecture.md
+  s_a1e16e6130e300::t_03ac8b89496a6f 1-213
+backend/app/routers/jobs.py
+  s_3e30ab43e55ff7::t_fedcc12829040c 45-46
+  s_3e30ab43e55ff7::t_25f3fff7a9335b 108-109
+  s_3e30ab43e55ff7::t_116bdffb24b6c2 69-70,73-79,85-86
+memory/topics/knowledge-base.md
+  s_a1e16e6130e300::t_e677b74af73fb4 1-8
+backend/tests/test_job_graduation.py
+  s_3e30ab43e55ff7::t_6db6e43498e8f6 1-53,55-62
+  s_3e30ab43e55ff7::t_074cbdc7f064ac 54
+backend/app/services/auto_dream.py
+  s_a1e16e6130e300::t_c9ed39891898f0 85
+  s_2728783a6d4cec::t_5d78d75eef7e59 1-84,86-140
+backend/app/services/user_memory.py
+  s_a1e16e6130e300::t_49a7ba19c6e6b5 73-78
+  s_a1e16e6130e300::t_f23b59f6f5caf1 105-110
+backend/app/services/job_preferences.py
+  s_3e30ab43e55ff7::t_1a02fee6ea0837 31-34
+  s_3e30ab43e55ff7::t_d09b276259fff1 10-11
+frontend/lib/jobDisplay.ts
+  s_3e30ab43e55ff7::t_f3fe6e0e25befd 34
+  s_3e30ab43e55ff7::t_bebc4e28436779 23-33
+  s_3e30ab43e55ff7::t_511722a5b51570 103-108
+backend/app/services/agent_context.py
+  s_a1e16e6130e300::t_d57c4db2f480f4 10,12
+  s_a1e16e6130e300::t_fd5f102d3a5847 36-38,43-48
+  s_a1e16e6130e300::t_302dc28fbcf1fe 80
+memory/topics/job-targets.md
+  s_a1e16e6130e300::t_7b94dfce6af59c 1-8
+frontend/components/jobs/JobPreferencesPanel.tsx
+  s_3e30ab43e55ff7::t_eb8db66908311e 25-26,130
+  s_3e30ab43e55ff7::t_6db9fe7c7167e7 39-40
+  s_3e30ab43e55ff7::t_18e4e608eb525e 56-57
+  s_3e30ab43e55ff7::t_3210d6cf78f6d6 131-149
+  s_3e30ab43e55ff7::t_cedeed8b32904e 80-81
+backend/tests/test_memory_layers.py
+  s_a1e16e6130e300::t_e4379edfd70a1f 1-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.33-trip",
+  "base_commit_sha": "7f2e6f71794719dd6b8a1c790fa8b1ce058f15b4",
+  "prompts": {},
+  "sessions": {
+    "s_2728783a6d4cec": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "69f293d3-6b62-445e-938f-5f7eccf8d866",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    },
+    "s_3e30ab43e55ff7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b97e172a-d5b0-407d-aa9a-f14672e0a9d0",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    },
+    "s_a1e16e6130e300": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "78874083-8cde-41e1-b2a8-6d19abf091cc",
+        "model": "composer-2.5"
+      },
+      "human_author": "JINGCHEN QIU （邱井晨） <qiujc@trip.com>"
+    }
+  }
+}
