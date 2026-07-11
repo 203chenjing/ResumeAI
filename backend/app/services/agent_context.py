@@ -7,7 +7,9 @@ from app.models.schemas import Session
 from app.services.agent_registry import tools_prompt_block
 from app.services.photo_context import photo_context_for_session
 from app.services.resume_density import assess_density
+from app.services.session_memory import summary_context
 from app.services.user_memory import load_memory
+from app.services.working_memory import working_memory_context
 
 
 def build_planner_context(
@@ -31,10 +33,19 @@ def build_planner_context(
 
     pending = [s for s in sess.suggestions if s.status in ("pending", "adjusted")]
 
+    wm_block = working_memory_context(sess)
+    sm_block = summary_context(sess.session_id)
+
     blocks = [
         "==== 用户本轮输入 ====",
         user_message or goal or "（用户未附加文字，请根据会话状态与历史决定下一步）",
         "",
+    ]
+    if wm_block:
+        blocks.extend([wm_block, ""])
+    if sm_block:
+        blocks.extend([sm_block, ""])
+    blocks.extend([
         "==== 用户长期偏好（可经 update_preferences 更新）====",
         json.dumps(prefs, ensure_ascii=False, indent=2),
         "",
@@ -66,7 +77,7 @@ def build_planner_context(
         tools_prompt_block(sess, specialist),
         "",
         f"==== 运行模式 ====\n{mode}（orchestrate=上传页编排；chat=编辑页对话，可选用 mode=chat 改稿）",
-    ]
+    ])
     return "\n".join(blocks)
 
 

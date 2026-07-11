@@ -43,5 +43,12 @@ class Settings(BaseSettings):
     crawl_schedule_minute: int = 0
     crawl_schedule_client_id: str = "default"
 
+    # 六层记忆架构（见 docs/memory-architecture.md）
+    memory_summary_threshold: int = 12
+    autodream_min_hours: int = 24
+    autodream_min_sessions: int = 5
+    memory_index_max_lines: int = 200
+    memory_index_max_bytes: int = 25600
+
 
 settings = Settings()

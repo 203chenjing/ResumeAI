@@ -13,11 +13,26 @@
 | 审批门 | [llm-wiki](https://github.com/ddsyasas/llm-wiki) | — | pending → confirm | MIT |
 | 测试 CI | career-ops `test-all.mjs` | — | 多层检查、PR 门禁 | MIT |
 
+## 记忆层对标
+
+| 模块 | 仓库 | Stars | 复用要点 | 许可 |
+|------|------|-------|----------|------|
+| 通用记忆层 | [mem0ai/mem0](https://github.com/mem0ai/mem0) | ~60k | 用户/会话/Agent 三层、自编辑去重、向量+图混合检索 | Apache-2.0 |
+| CC 记忆源码研读 | [luyao618/Claude-Code-Source-Study](https://github.com/luyao618/Claude-Code-Source-Study) | ~2k | 七层架构、memdir、AutoDream、Session Memory | — |
+| AutoDream 文档 | [HFurther/claude-code-stable](https://github.com/HFurther/claude-code-stable) | — | 整合四阶段、双闸门触发 | — |
+| 时序记忆图 | [getzep/zep](https://github.com/getzep/zep) | ~20k | 事实有效期、LongMemEval 时序推理 | Apache-2.0 |
+| 分层 Agent 记忆 | [letta-ai/letta](https://github.com/letta-ai/letta) | ~20k | core / archival / recall 分层 | Apache-2.0 |
+
+详见 [memory-architecture.md](./memory-architecture.md)。
+
 ## 本仓库映射
 
 | ResumeAI 路径 | 对标 |
 |---------------|------|
 | `backend/app/services/session_store.py` | resume-lm 持久化 |
+| `backend/app/services/memdir.py` + `docs/memory-architecture.md` | Claude Code memdir + MEMORY.md |
+| `backend/app/services/auto_dream.py` | Claude Code AutoDream 休眠重塑 |
+| `backend/app/services/user_memory.py` | mem0 用户级长期记忆（文件型实现） |
 | `backend/app/services/application_advisor.py` | career-ops oferta 分档 |
 | `backend/app/services/pending_knowledge.py` | llm-wiki approval gate |
 | `backend/app/routers/applications.py` | job-ops tracker + career-ops states.yml |

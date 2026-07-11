@@ -151,6 +151,9 @@ API 文档：`http://localhost:8000/docs`
 ```
 ResumeAI/
 ├── start.bat / start.sh          # 一键启动
+├── CLAUDE.md                     # L1 指令记忆
+├── memory/                         # memdir 模板（MEMORY.md + topics）
+├── docs/memory-architecture.md     # 六层记忆架构说明
 ├── backend/                      # FastAPI
 │   ├── app/routers/              # REST + Agent 路由
 │   ├── app/services/             # 解析、匹配、建议、知识库、PDF…

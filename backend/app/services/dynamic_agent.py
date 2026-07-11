@@ -15,6 +15,8 @@ from app.services.llm_client import client
 from app.services.photo_context import photo_context_for_session
 from app.services.resume_density import assess_density
 from app.services.session_store import store
+from app.services.working_memory import update_working_memory
+from app.services.session_memory import maybe_update_summary
 from app.services.session_sync import build_session_payload
 from app.services.user_memory import load_memory, merge_preferences
 
@@ -98,6 +100,23 @@ def _after_action_reply(action: str, result: dict) -> str:
 
 def _session_payload(sess: Session) -> dict:
     return build_session_payload(sess)
+
+
+def _persist_session_memory(sess: Session) -> None:
+    maybe_update_summary(sess)
+
+
+def _touch_working_memory(sess: Session, action: str, *, goal: str = "") -> None:
+    update_working_memory(
+        sess,
+        goal=goal or None,
+        current_step=action,
+        completed_step=action,
+        checkpoint={
+            "status": sess.status,
+            "pending_count": len([s for s in sess.suggestions if s.status in ("pending", "adjusted")]),
+        },
+    )
 
 
 def _done_event(sess: Session, summary: str, *, extra: dict | None = None) -> dict:
@@ -198,6 +217,8 @@ async def stream_dynamic_agent(
         agent_label = "edit" if mode == "chat" else "coordinator"
         yield {"type": "tool_call", "action": action, "input": action_input, "agent": agent_label}
         result = await execute_tool(sess, action, action_input, confirmed=True, client_id=client_id)
+        _touch_working_memory(sess, action, goal=effective_goal)
+        _persist_session_memory(sess)
         store.update(sess)
         yield {"type": "tool_result", "action": action, "result": result, "agent": agent_label}
         if action == "prepare_export" and result.get("export_ready"):
@@ -366,6 +387,8 @@ async def stream_dynamic_agent(
 
         yield {"type": "tool_call", "action": action, "input": action_input, "agent": specialist, "step": step + 1}
         result = await execute_tool(sess, action, action_input, confirmed=True, client_id=client_id)
+        _touch_working_memory(sess, action, goal=effective_goal)
+        _persist_session_memory(sess)
         store.update(sess)
         yield {"type": "tool_result", "action": action, "result": result, "agent": specialist, "step": step + 1}
 

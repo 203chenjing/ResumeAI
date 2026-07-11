@@ -9,6 +9,7 @@ from pathlib import Path
 from app.config import settings
 from app.services.job_ai_enrichment import ai_rerank_picks
 from app.services.job_feed import list_jobs
+from app.services.job_graduation import get_graduation_classes
 from app.services.job_preferences import load_job_preferences
 from app.services.llm_client import client
 from app.services.master_resume import get_active_master
@@ -94,6 +95,19 @@ def _score_job(job: dict, prefs: dict, resume_md: str, *, is_new: bool) -> tuple
 
     if job.get("validation_status") == "ok":
         score += 5
+
+    grad_classes = get_graduation_classes(job)
+    target_grad = str(prefs.get("graduation_class") or "27").replace("届", "")
+    if target_grad and target_grad in grad_classes:
+        score += 22
+        reasons.append(f"{target_grad}届")
+    elif grad_classes == ["26"] and target_grad == "27":
+        score -= 12
+
+    channel = job.get("channel") or ""
+    if job.get("source") == "job_aggregator" or "牛客" in channel:
+        score += 18
+        reasons.append("牛客日程")
 
     if resume_md.strip():
         match = quick_match_score(resume_md, jd or role, prefs=prefs)
@@ -181,7 +195,17 @@ async def build_job_digest(
 ) -> dict:
     """生成并保存 AI 投递摘要。"""
     prefs = load_job_preferences(client_id)
-    jobs = [j for j in list_jobs(client_id) if j.get("validation_status") != "invalid"]
+    grad = str(prefs.get("graduation_class") or "").replace("届", "").strip()
+    jobs = [
+        j
+        for j in list_jobs(
+            client_id,
+            graduation_class=grad or None,
+            include_unlabeled=bool(prefs.get("include_unlabeled_jobs")),
+            include_weak=True,
+        )
+        if j.get("validation_status") != "invalid"
+    ]
     new_set = set(new_job_ids or [])
 
     resume_md = ""

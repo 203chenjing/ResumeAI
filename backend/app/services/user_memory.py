@@ -96,6 +96,12 @@ def save_memory(client_id: str, payload: dict) -> dict:
                 merged_prefs[key] = payload["job_preferences"][key]
         current["job_preferences"] = merged_prefs
     _path(client_id).write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        from app.services.memdir import sync_from_user_memory
+
+        sync_from_user_memory(client_id, current)
+    except Exception as e:
+        logger.warning("memdir sync failed: %s", e)
     return current
 
 
@@ -122,6 +128,12 @@ def merge_preferences(client_id: str, updates: dict) -> dict:
 
 
 def memory_context_for_prompt(client_id: str = DEFAULT_CLIENT) -> str:
+    try:
+        from app.services.memdir import load_for_prompt
+
+        return load_for_prompt(client_id)
+    except Exception as e:
+        logger.warning("memdir load_for_prompt failed, fallback to JSON: %s", e)
     mem = load_memory(client_id)
     kb = mem.get("knowledge_base_md", "")
     prefs = mem.get("preferences", {})

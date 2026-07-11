@@ -80,7 +80,20 @@ metadata:
 
 
 
-## 长期记忆
+## 长期记忆（六层架构）
+
+参考晨 TR058485 · Claude Code 记忆子系统，详见 `docs/memory-architecture.md`。
+
+| 层 | 名称 | ResumeAI 实现 |
+|----|------|---------------|
+| L1 | 指令记忆 | `CLAUDE.md` + `skills/` |
+| L2 | 短期记忆 | `Session.chat_history`（零压缩） |
+| L3 | 工作记忆 | `Session.working_memory` |
+| L4 | 长期记忆 | `data/memdir/{client_id}/` + `MEMORY.md` |
+| L5 | 摘要记忆 | `data/session_memory/{id}/summary.md` |
+| L6 | 休眠重塑 | `auto_dream.py`（24h + 5 会话双闸门） |
+
+## 长期记忆 API（L4 兼容层）
 
 
 
@@ -105,5 +118,7 @@ metadata:
 | `POST /api/chat/agent` | 编辑页 Agent 对话（SSE） |
 
 | `PUT /api/user-memory` | 保存长期记忆 |
+| `GET /api/memory/index/{client_id}` | 读取 MEMORY.md 索引 |
+| `POST /api/memory/consolidate` | 手动触发 AutoDream（L6） |
 
 

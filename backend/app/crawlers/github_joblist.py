@@ -44,6 +44,8 @@ async def _get_with_retry(http: httpx.AsyncClient, url: str, *, retries: int = 3
 
 MD_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^#{1,4}\s+(.*\S)\s*$")
+HTML_H3_RE = re.compile(r"<h3[^>]*>(.*?)</h3>", re.I)
+BATCH_LINE_RE = re.compile(r"^(26|27)届(?:实习|应届生|校招|提前批|秋招|春招)?$")
 # 中文内推码常为纯字母（如 DBQMSUOJ / NTAciAS），故不强制要求数字；
 # 仅在出现明确「内推码 / 内推 / 邀请码 / referral code」标记时抽取，避免误判。
 REFERRAL_RE = re.compile(
@@ -58,8 +60,19 @@ CATEGORY_HEADINGS = frozenset(
         "独角兽", "国企", "央企", "外企", "优质潜力企业", "潜力企业", "开发岗", "算法岗",
         "测试", "测试/运维/安全岗", "产品", "运营", "设计岗", "硬件岗", "金融岗",
         "实习篇", "校招篇", "目录", "简介", "前言", "说明", "贡献", "免责声明",
+        "后端岗位", "算法岗位", "测试开发", "游戏", "AI大模型",
+        "硬件/芯片/通信相关技术岗", "前端开发", "运维/安全", "数据分析", "机器学习",
     }
 )
+
+
+def is_category_heading(title: str) -> bool:
+    t = (title or "").strip()
+    if not t or t in CATEGORY_HEADINGS:
+        return True
+    if t.endswith("岗位") or t.endswith("技术岗"):
+        return True
+    return False
 
 
 def _strip_md(text: str) -> str:
@@ -124,13 +137,36 @@ def _parse_markdown_table(md: str, source: dict, china_only: bool = False) -> li
     header: list[str] | None = None
     col_idx: dict[str, int] = {}
     current_company = ""
+    current_batch = ""
+    section_active = False
 
     for line in lines:
         stripped = line.strip()
         if not stripped.startswith("|"):
+            html_h3 = HTML_H3_RE.search(stripped)
+            if html_h3:
+                heading = _strip_md(html_h3.group(1))
+                if heading and not is_category_heading(heading) and len(heading) <= 24:
+                    current_company = heading
+                    section_active = True
+                else:
+                    current_company = ""
+                    section_active = False
+                current_batch = ""
+                header = None
+                continue
+
             heading = _clean_heading(line)
-            if heading and heading not in CATEGORY_HEADINGS and len(heading) <= 24:
+            if heading and not is_category_heading(heading) and len(heading) <= 24:
                 current_company = heading
+                section_active = True
+                current_batch = ""
+            elif BATCH_LINE_RE.match(stripped):
+                current_batch = stripped
+            elif heading and is_category_heading(heading):
+                current_company = ""
+                section_active = False
+                current_batch = ""
             header = None
             continue
 
@@ -154,6 +190,8 @@ def _parse_markdown_table(md: str, source: dict, china_only: bool = False) -> li
             continue  # 分隔行
         if "company" not in col_idx and "role" not in col_idx:
             continue
+        if "company" not in col_idx and not section_active:
+            continue
 
         row_text = " ".join(cells)
         if any(m in row_text.lower() for m in CLOSED_MARKERS):
@@ -171,11 +209,17 @@ def _parse_markdown_table(md: str, source: dict, china_only: bool = False) -> li
         jd_url = link_url or role_url or company_url or _first_link_in_row(cells)
         company = company_disp or current_company or "未知企业"
         role = role_disp or link_disp or "校招岗位"
+        if is_category_heading(company):
+            continue
         if (not company or company == "未知企业") and len(role) < 3:
             continue
 
         referral = _extract_referral(row_text)
         locations = [p.strip() for p in re.split(r"[、,/，|]", loc) if p.strip()][:6]
+        row_tags = list(base_tags)
+        if current_batch:
+            row_tags.append(current_batch)
+        jd_prefix = f"{current_batch} " if current_batch else ""
 
         if china_only and not is_china_location(f"{loc} {company} {role}"):
             continue
@@ -186,11 +230,11 @@ def _parse_markdown_table(md: str, source: dict, china_only: bool = False) -> li
                 company=company[:60],
                 role=role[:120],
                 source="github_joblist",
-                jd_text=f"{company} {role} {loc}".strip(),
+                jd_text=f"{jd_prefix}{company} {role} {loc}".strip(),
                 jd_url=jd_url,
                 location=locations[0] if locations else "",
                 channel=channel,
-                tags=list(base_tags),
+                tags=row_tags,
                 locations=locations,
                 referral_code=referral,
                 legitimacy="trusted",

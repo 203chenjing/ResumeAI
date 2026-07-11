@@ -122,6 +122,7 @@ class Session(BaseModel):
     match_result: MatchResult | None = None
     status: str = "uploading"
     agent_prefs: dict = Field(default_factory=dict)
+    working_memory: dict = Field(default_factory=dict)
 
 
 # ---------------- API Response ----------------

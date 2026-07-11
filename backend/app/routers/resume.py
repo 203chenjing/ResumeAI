@@ -32,6 +32,12 @@ async def parse_resume(
     parsed, md = await parse_resume_text(text)
 
     sess = store.create()
+    try:
+        from app.services.memdir import increment_session_count
+
+        increment_session_count(client_id)
+    except Exception:
+        logger.debug("memdir session count increment skipped", exc_info=True)
     sess.original_resume_md = md
     sess.current_resume_md = md
     sess.parsed_resume = parsed

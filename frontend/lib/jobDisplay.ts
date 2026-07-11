@@ -22,6 +22,18 @@ export function workCities(job: JobPosting): string[] {
   return Array.from(new Set(merged.filter(Boolean))).slice(0, 4);
 }
 
+export function graduationLabel(job: JobPosting): string {
+  const fromTags = (job.tags || [])
+    .filter((t) => t.startsWith("届别:"))
+    .map((t) => t.replace("届别:", ""));
+  if (fromTags.length) {
+    if (fromTags.includes("26") && fromTags.includes("27")) return "26/27届";
+    return `${fromTags[fromTags.length - 1]}届`;
+  }
+  const m = `${job.role || ""} ${job.jd_text || ""}`.match(/(?:26\/27|27|26)届/);
+  return m?.[0] || "";
+}
+
 export function displayRole(job: JobPosting): string {
   const role = (job.role || "").trim();
   const company = (job.company || "").trim();
@@ -104,6 +116,11 @@ export function displayCompany(job: JobPosting): string {
 export function facetTags(job: JobPosting): string[] {
   const internal = new Set(["job_aggregator", "company_campus", "university_html", "wechat_article", "聚合"]);
   return (job.tags || []).filter(
-    (t) => !t.startsWith("来源:") && !t.startsWith("工作地:") && !t.startsWith("发布方:") && !internal.has(t)
+    (t) =>
+      !t.startsWith("来源:") &&
+      !t.startsWith("工作地:") &&
+      !t.startsWith("发布方:") &&
+      !t.startsWith("届别:") &&
+      !internal.has(t)
   );
 }

@@ -1,0 +1,5 @@
+feat: add six-layer agent memory and job pipeline improvements
+
+Introduce memdir/MEMORY.md long-term memory, session summaries, working memory,
+and AutoDream consolidation. Includes crawler yield fixes, graduation filtering,
+and frontend job/copilot UI polish.
