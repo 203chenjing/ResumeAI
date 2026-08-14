@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
+
+// 岗位库为全局共享（爬虫默认导入 default 用户），岗位查询固定用该 client_id；
+// 简历/知识库/记忆仍用个人 getClientId() 隔离。
+const JOB_FEED_CLIENT_ID = "default";
 import { ROUTES } from "@/lib/navigation";
 import { useAppStore } from "@/stores/useAppStore";
 import { useCrawlStore } from "@/stores/useCrawlStore";
@@ -106,7 +110,7 @@ export default function JobsView() {
   async function load(options?: { silent?: boolean }) {
     if (!options?.silent) setLoading(true);
     try {
-      const res = await api.getJobFeed(getClientId(), {
+      const res = await api.getJobFeed(JOB_FEED_CLIENT_ID, {
         source: sourceFilter || undefined,
         job_type: typeFilter || undefined,
         work_city: cityFilter || undefined,
@@ -129,10 +133,10 @@ export default function JobsView() {
   }, [sourceFilter, typeFilter, cityFilter, cohortFilter, includeUnknownCohort, hideWeak]);
 
   useEffect(() => {
-    api.getCrawlHealth(getClientId()).then((res) => {
+    api.getCrawlHealth(JOB_FEED_CLIENT_ID).then((res) => {
       if (res.success && res.data) setCrawlHealth(res.data);
     }).catch(() => {});
-    api.getCrawlHistory(getClientId()).then((res) => {
+    api.getCrawlHistory(JOB_FEED_CLIENT_ID).then((res) => {
       if (res.success && res.data) setCrawlHistory(res.data.history);
     }).catch(() => {});
   }, []);
@@ -193,7 +197,7 @@ export default function JobsView() {
       );
     }
     if (data.crawl_health) setCrawlHealth(data.crawl_health);
-    api.getCrawlHistory(getClientId()).then((res) => {
+    api.getCrawlHistory(JOB_FEED_CLIENT_ID).then((res) => {
       if (res.success && res.data) setCrawlHistory(res.data.history);
     }).catch(() => {});
   }
@@ -201,7 +205,7 @@ export default function JobsView() {
   async function regenerateDigest() {
     setDigestLoading(true);
     try {
-      const res = await api.generateJobDigest(getClientId());
+      const res = await api.generateJobDigest(JOB_FEED_CLIENT_ID);
       if (res.success && res.data) setDigest(res.data);
     } finally {
       setDigestLoading(false);
@@ -214,7 +218,7 @@ export default function JobsView() {
     setDigestLoading(true);
     setCrawlRunning(copy.crawl.starting);
     try {
-      const res = await api.crawlJobs(getClientId(), null);
+      const res = await api.crawlJobs(JOB_FEED_CLIENT_ID, null);
       if (!res.success || !res.data) return;
       const data = res.data;
       if (data.status === "running") {
