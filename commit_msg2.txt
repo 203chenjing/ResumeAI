@@ -1,0 +1,5 @@
+feat: ResumeAI 定时调度加入 qiuzhao_system 自动同步
+
+秋招系统每 30 分钟自动抓取新岗位，但 ResumeAI 定时错峰爬取未包含
+qiuzhao_system，导致岗位库不同步。将其加入 STAGGERED_PROVIDERS 首位
+（每日 05:30，本地读取毫秒级），实现秋招新数据自动同步到岗位库。

@@ -16,6 +16,7 @@ _scheduler: AsyncIOScheduler | None = None
 
 # (provider, hour, minute) — 27 届专项源优先，错峰执行
 STAGGERED_PROVIDERS: list[tuple[str, int, int]] = [
+    ("qiuzhao_system", 5, 30),
     ("browser_discovery", 5, 40),
     ("wechat_discovery", 5, 45),
     ("github_joblist", 5, 50),
