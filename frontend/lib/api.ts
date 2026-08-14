@@ -1,5 +1,5 @@
 // API 请求封装
-import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, CrawlRun, SessionArchive, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
+import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, InterviewBankResult, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, CrawlRun, SessionArchive, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
 import { getClientId } from "./userMemory";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -561,6 +561,8 @@ export const api = {
       body: JSON.stringify({ client_id }),
     });
   },
+
+  backfillCohort(client_id: string) {
     return request<
       ApiResponse<{
         total: number;
@@ -673,6 +675,13 @@ export const api = {
     return request<ApiResponse<InterviewPrepPack>>("/api/interview/prep", {
       method: "POST",
       body: JSON.stringify({ client_id, application_id, ...extra }),
+    });
+  },
+
+  getInterviewBank(client_id: string, company: string, role: string, limit = 6) {
+    return request<ApiResponse<InterviewBankResult>>("/api/interview/bank", {
+      method: "POST",
+      body: JSON.stringify({ client_id, company, role, limit }),
     });
   },
 

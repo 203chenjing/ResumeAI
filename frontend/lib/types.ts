@@ -328,6 +328,25 @@ export interface InterviewPrepPack {
       tips: string;
     }>
   >;
+  interviews?: InterviewBankItem[];
+  real_questions?: string[];
+}
+
+export interface InterviewBankItem {
+  title: string;
+  author?: string;
+  summary?: string;
+  source?: string;
+  source_url?: string;
+  category?: string;
+  tags?: string[];
+  questions?: string[];
+}
+
+export interface InterviewBankResult {
+  total: number;
+  interviews: InterviewBankItem[];
+  common_questions: string[];
 }
 
 export interface Reminder {

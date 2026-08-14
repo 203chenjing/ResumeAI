@@ -7,7 +7,7 @@ import Header from "@/components/layout/Header";
 import { api } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
 import type { InterviewPrepPack } from "@/lib/types";
-import { BookOpen, Loader2, MessageSquare } from "lucide-react";
+import { BookOpen, Loader2, MessageSquare, Newspaper } from "lucide-react";
 import ChatInput from "@/components/ui/ChatInput";
 import { copy } from "@/lib/copy";
 import { ROUTES } from "@/lib/navigation";
@@ -135,6 +135,37 @@ export default function InterviewPage() {
                   ))}
                 </ul>
               </div>
+
+              {(pack.interviews?.length || 0) > 0 && (
+                <div className="surface-card p-4">
+                  <h2 className="font-semibold flex items-center gap-2 mb-3">
+                    <Newspaper size={16} /> 真实面经（多源聚合）
+                  </h2>
+                  {(pack.real_questions?.length || 0) > 0 && (
+                    <div className="mb-3">
+                      <div className="text-xs text-[var(--text-secondary)] mb-1">高频真实问题：</div>
+                      <ul className="text-sm space-y-1">
+                        {pack.real_questions!.slice(0, 5).map((q, i) => (
+                          <li key={i} className="text-[var(--text-primary)]">· {q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <ul className="space-y-2 text-sm">
+                    {pack.interviews!.map((item, i) => (
+                      <li key={i} className="p-2 bg-[var(--surface-base)] rounded border">
+                        <div className="font-medium">{item.title}</div>
+                        <div className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">
+                          {item.summary}
+                        </div>
+                        <div className="text-[10px] text-[var(--text-disabled)] mt-1">
+                          来源：{item.source || "未知"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {(["hr", "technical", "group"] as const).map((cat) => (
                 <div key={cat} className="surface-card p-4">

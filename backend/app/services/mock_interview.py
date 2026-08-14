@@ -6,6 +6,7 @@ import re
 from typing import Any, AsyncGenerator
 
 from app.config import settings
+from app.services.interview_bank import get_bank
 from app.services.llm_client import client
 from app.services.pending_knowledge import extract_pending_from_diff
 
@@ -105,6 +106,21 @@ async def stream_mock_interview(
     q_idx = min(turn, len(questions) - 1)
     question = questions[q_idx]
 
+    # 面经上下文：按公司/岗位召回真实面经（标题+摘要），供 LLM 参考该公司的
+    # 真实面试风格与高频考点生成问题；规则提取的问题仅作参考，不强依赖。
+    interview_context = ""
+    try:
+        bank = get_bank()
+        hits = bank.search(company=company, query=role, limit=3)
+        if hits:
+            lines = []
+            for h in hits:
+                summary = (h.get("summary") or "")[:150]
+                lines.append(f"- [{h['title']}]（{h['source']}）{summary}")
+            interview_context = "\n".join(lines)
+    except Exception:
+        pass
+
     if turn == 0 and not user_answer.strip():
         prompt = f"【{round_label}】{question}\n\n请用 STAR 结构回答（情境 / 任务 / 行动 / 结果）。"
         yield {
@@ -142,6 +158,7 @@ async def stream_mock_interview(
                 "question": question,
                 "answer": user_answer,
                 "turn": turn,
+                "interview_context": interview_context[:1200],
             },
             ensure_ascii=False,
         )

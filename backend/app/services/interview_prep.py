@@ -1,6 +1,7 @@
 """面试准备包：对标 career-ops interview-prep。"""
 from __future__ import annotations
 
+from app.services.interview_bank import get_bank
 from app.services.story_bank import Story, parse_stories_from_kb, search_stories
 
 HR_QUESTIONS = [
@@ -61,9 +62,19 @@ def build_prep_pack(
             )
         return items
 
+    bank = get_bank()
+    interviews = bank.search(company=company, query=role, limit=5)
+    real_questions = []
+    for item in interviews:
+        for q in item.get("questions") or []:
+            if q not in real_questions:
+                real_questions.append(q)
+
     return {
         "company": company,
         "role": role,
+        "interviews": interviews,
+        "real_questions": real_questions[:8],
         "stories": [
             {
                 "id": s.id,

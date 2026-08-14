@@ -8,6 +8,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.models.schemas import ApiResponse
 from app.services.application_store import list_applications
+from app.services.interview_bank import get_bank
 from app.services.interview_prep import build_prep_pack
 from app.services.mock_interview import stream_mock_interview
 from app.services.user_memory import load_memory
@@ -35,6 +36,13 @@ class MockInterviewBody(BaseModel):
     turn: int = 0
 
 
+class BankBody(BaseModel):
+    client_id: str = "default"
+    company: str = ""
+    role: str = ""
+    limit: int = 6
+
+
 @router.post("/interview/prep", response_model=ApiResponse)
 async def post_prep(body: PrepBody):
     company = body.company
@@ -58,6 +66,21 @@ async def post_prep(body: PrepBody):
         knowledge_md=mem.get("knowledge_base_md", ""),
     )
     return ApiResponse(success=True, data=pack)
+
+
+@router.post("/interview/bank", response_model=ApiResponse)
+async def post_interview_bank(body: BankBody):
+    """面经库查询：按公司/岗位召回真实面经，用于面试准备。"""
+    bank = get_bank()
+    interviews = bank.search(company=body.company, query=body.role, limit=body.limit)
+    return ApiResponse(
+        success=True,
+        data={
+            "total": len(interviews),
+            "interviews": interviews,
+            "common_questions": bank.common_questions(),
+        },
+    )
 
 
 @router.post("/interview/mock")

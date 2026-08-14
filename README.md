@@ -201,6 +201,7 @@ cd frontend && npm run build
 | `github_joblist` | 国内每日校招仓库（namewyf/Campus2026、0voice 计算机校招汇总），含外企中国分部，自带官方投递链接与内推码；支持「章节标题即公司」的表格结构 | 零 token，无浏览器 |
 | `ats_board` | 在华外企官方 ATS 公开 JSON 接口（Greenhouse / Lever / Ashby），`china_only` 仅保留中国大陆岗位 | 零 token，无浏览器 |
 | `university_html` | 北上广深及重点高校就业网 | HTTP/Playwright |
+| `qiuzhao_system` | **本地秋招聚合系统**（搜狗微信/牛客/智联校招/前程无忧/实习僧等已清洗 27 届岗位库，直接读取 SQLite，无需网络请求；来源含 51job/yingjiesheng 时由 blocked_domains 合规过滤） | 零 token，无浏览器 |
 | `company_campus` / `job_aggregator` | 企业校招页与聚合站（牛客等） | HTTP/Playwright |
 
 - `github_joblist` / `ats_board` 标记为「可信」来源，跳过严格正文校验；其余来源经 `job_validator` 过滤资讯/活动噪声，必要时由 DeepSeek 做结构化补全与打标签。

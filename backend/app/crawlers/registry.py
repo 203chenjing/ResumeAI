@@ -6,6 +6,7 @@ from app.crawlers.company_campus import CompanyCampusProvider
 from app.crawlers.early_batch import EarlyBatchProvider
 from app.crawlers.github_joblist import GithubJoblistProvider
 from app.crawlers.job_aggregator import JobAggregatorProvider
+from app.crawlers.qiuzhao_system import QiuzhaoSystemProvider
 from app.crawlers.search_discovery import SearchDiscoveryProvider
 from app.crawlers.university_html import UniversityHtmlProvider
 from app.crawlers.wechat_discovery import WechatDiscoveryProvider
@@ -23,4 +24,5 @@ PROVIDERS = {
     "browser_discovery": BrowserDiscoveryProvider(),
     "wechat_discovery": WechatDiscoveryProvider(),
     "campus_patrol": CampusPatrolProvider(),
+    "qiuzhao_system": QiuzhaoSystemProvider(),
 }

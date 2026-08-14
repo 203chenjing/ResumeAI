@@ -34,11 +34,12 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 # 快速刷新：结构化源优先，27 届专项源靠前
-QUICK_CRAWL_PROVIDERS = ["github_joblist", "early_batch", "job_aggregator", "search_discovery"]
+QUICK_CRAWL_PROVIDERS = ["qiuzhao_system", "github_joblist", "early_batch", "job_aggregator", "search_discovery"]
 FULL_CRAWL_PROVIDERS = QUICK_CRAWL_PROVIDERS + ["company_campus", "campus_patrol", "university_html"]
 
 # 全渠道抓取顺序（含可选 provider）
 ALL_PROVIDER_ORDER = [
+    "qiuzhao_system",
     "browser_discovery",
     "wechat_discovery",
     "github_joblist",
