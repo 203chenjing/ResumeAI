@@ -17,21 +17,21 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 PRESETS = {
     "standard": {
-        "margin_bottom": "0.8cm",
+        "margin_bottom": "2.0cm",
         "item_spacing": "3pt",
         "section_margin": "4pt",
         "h2_after": "3pt",
         "body_padding_top": "0",
     },
     "tight": {
-        "margin_bottom": "0.8cm",
+        "margin_bottom": "2.0cm",
         "item_spacing": "2pt",
         "section_margin": "3pt",
         "h2_after": "2pt",
         "body_padding_top": "8mm",
     },
     "fill": {
-        "margin_bottom": "0.6cm",
+        "margin_bottom": "2.0cm",
         "item_spacing": "3pt",
         "section_margin": "4pt",
         "h2_after": "3pt",
@@ -58,14 +58,14 @@ HTML_TEMPLATE = """<!doctype html>
 <style>
 @page {{
     size: A4;
-    margin: 1.0cm 2.0cm {margin_bottom} 2.0cm;
+    margin: 1.15cm 1.69cm {margin_bottom} 1.69cm;
 }}
 * {{
     box-sizing: border-box;
 }}
 body {{
     font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "SimHei", sans-serif;
-    font-size: 9.5pt;
+    font-size: 8.5pt;
     line-height: {line_height};
     color: #111;
     margin: 0;
@@ -79,7 +79,7 @@ body {{
     print-color-adjust: exact;
 }}
 h1 {{
-    font-size: 17pt;
+    font-size: 16.2pt;
     font-weight: 700;
     text-align: center;
     margin: 0 0 3pt 0;
@@ -89,7 +89,7 @@ h1 {{
 .target-role {{
     text-align: center;
     text-align-last: center;
-    font-size: 10pt;
+    font-size: 9.4pt;
     line-height: {line_height};
     margin: 0;
 }}
@@ -146,11 +146,13 @@ body.has-photo .resume-header-row .col-right {{
     text-align: right;
 }}
 h2 {{
-    font-size: 12.5pt;
+    font-size: 10.5pt;
     font-weight: 700;
     border: none;
+    border-left: 2.2pt solid #2c2c2c;
+    background: #f0f0f0;
     margin: {section_margin} 0 {h2_after} 0;
-    padding: 0;
+    padding: 2pt 0 2pt 6pt;
     line-height: {line_height};
 }}
 p, li {{
@@ -464,7 +466,7 @@ def _rectangles_overlap(
 
 
 A4_HEIGHT_PT = 841.89
-BOTTOM_MARGIN_CM = 0.8
+BOTTOM_MARGIN_CM = 2.0
 MAX_BOTTOM_GAP_MM = 20.0
 
 

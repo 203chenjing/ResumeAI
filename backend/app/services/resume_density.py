@@ -1,10 +1,10 @@
 """简历内容密度评估（对齐 SKILL 一页 A4 目标）。"""
 
-# SKILL：约 1700–2200 汉字；<1500 易底部空白；>2400 易溢出 2 页
-SPARSE_THRESHOLD = 1500
-IDEAL_MIN = 1700
-IDEAL_MAX = 2200
-DENSE_THRESHOLD = 2400
+# 按当前 A4 模板（正文 8.5pt / 左右 48pt）实测标定：约 2940 字填满一页
+SPARSE_THRESHOLD = 1900   # 低于此值底部易明显留白
+IDEAL_MIN = 2200
+IDEAL_MAX = 2800
+DENSE_THRESHOLD = 2940    # 高于此值易溢出到第 2 页
 
 
 def count_chars(md: str) -> int:
