@@ -5,6 +5,30 @@ import re
 
 _NUM_PREFIX = re.compile(r"^(\d+)\.\s*")
 _BOLD_ITEM = re.compile(r"^(\d+)\.\s*\*\*([^*]+)\*\*[：:]\s*")
+# 被拍平成顶层编号的子要点：`2. **1）体验拆解**：…`
+_SUB_ITEM = re.compile(r"^\*\*\s*[（(]?\s*(\d{1,2})\s*[）)]\s*(.+)$", re.S)
+
+
+def demote_sub_item(text: str) -> str | None:
+    """把被拍平的子要点还原成 `1）**标题**：正文`，不占顶层编号。
+
+    解析与建议链路会把「项目 → 子要点」压成平级编号，既破坏结构，又让
+    「每段经历 ≤5 条」规则误判（用户看到的是规则在指责自己）。
+    """
+    raw = (text or "").strip()
+    num_m = _NUM_PREFIX.match(raw)
+    if not num_m:
+        return None
+    rest = raw[num_m.end() :].strip()
+    m = _SUB_ITEM.match(rest)
+    if not m:
+        return None
+
+    num, tail = m.group(1), m.group(2).strip()
+    # `**1）**体验拆解…**` 与 `**1）体验拆解**…` 两种坏形态都收敛到同一格式
+    if not tail.startswith("**") and "**" in tail:
+        tail = f"**{tail}"
+    return f"{num}）{tail}"
 
 
 def _split_title_body(rest: str) -> tuple[str, str] | None:
@@ -39,6 +63,10 @@ def ensure_experience_item_format(text: str, *, reference: str = "") -> str:
     ref = (reference or "").strip()
     ref_num = _NUM_PREFIX.match(ref)
     num_m = _NUM_PREFIX.match(raw)
+
+    demoted = demote_sub_item(raw)
+    if demoted:
+        return demoted
 
     if _BOLD_ITEM.match(raw):
         return raw
@@ -78,7 +106,7 @@ def normalize_experience_markdown(md: str) -> str:
     lines: list[str] = []
     for line in exp_block.split("\n"):
         stripped = line.strip()
-        if _NUM_PREFIX.match(stripped) and not _BOLD_ITEM.match(stripped):
+        if _NUM_PREFIX.match(stripped):
             lines.append(ensure_experience_item_format(stripped))
         else:
             lines.append(line)

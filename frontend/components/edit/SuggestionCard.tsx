@@ -36,6 +36,10 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
   };
   const sectionLabel = SECTION_LABELS[suggestion.section] || suggestion.section;
 
+  // 采纳建议 = 花版面预算：标出这条会多占/省下多少字，避免无脑点采纳
+  const charDelta =
+    (suggestion.suggested_text?.length || 0) - (suggestion.original_text?.length || 0);
+
   const statusBorder = {
     pending: "border-[var(--border-subtle)]",
     accepted: "border-[var(--semantic-success-border)] bg-[var(--semantic-success-muted)]/30",
@@ -62,6 +66,19 @@ export default function SuggestionCard({ suggestion, onAccept, onReject, onUndo,
         <span className="px-2 py-0.5 rounded-[var(--radius-sm)] bg-[var(--surface-base)] text-[var(--text-secondary)] text-xs">
           {sectionLabel}
         </span>
+        {charDelta !== 0 && (
+          <span
+            className={clsx(
+              "px-1.5 py-0.5 rounded-[var(--radius-sm)] text-xs tabular-nums",
+              charDelta > 0
+                ? "text-[var(--semantic-warning)] border border-[var(--semantic-warning)]/30"
+                : "text-[var(--semantic-success)] border border-[var(--semantic-success)]/30"
+            )}
+            title={charDelta > 0 ? "采纳后正文变长，会占用一页预算" : "采纳后正文变短，省出版面"}
+          >
+            {charDelta > 0 ? `+${charDelta}` : charDelta} 字
+          </span>
+        )}
         {suggestion.status === "accepted" && (
           <span className="text-[var(--semantic-success)] text-xs ml-auto">✓ {copy.edit.statusAccepted}</span>
         )}

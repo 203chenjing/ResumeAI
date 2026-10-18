@@ -41,7 +41,10 @@ export default function ResumePreview({
   const { displayMd, hadPhoto } = markdownForPreview(markdown, sessionId);
   const highlightedBody = injectResumeHighlight(
     hadPhoto && sessionId
-      ? displayMd.split(/(?=## )/).slice(1).join("## ").replace(/^/, "## ")
+      ? displayMd
+          .split(/(?=## )/)
+          .slice(1)
+          .join("") // 分块已自带 `## ` 前缀；再拼一次会出现字面「## 教育经历」
       : displayMd,
     highlightText
   );

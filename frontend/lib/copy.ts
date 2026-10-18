@@ -187,6 +187,29 @@ export const copy = {
     tracked: "已记入投递追踪",
     interviewPrep: "面试准备",
   },
+  capacity: {
+    label: "一页容量",
+    pages: (n: number) => `预计 ${n} 页`,
+    items: (n: number, limit: number) => `条数 ${n}/${limit}`,
+    skills: (n: number, limit: number) => `技能 ${n}/${limit}`,
+    overflow: "已超出一页，定稿前会被拦",
+    ok: "一页内，可直接定稿",
+  },
+  preflight: {
+    title: "定稿预检",
+    checking: "正在预检（渲染一次 PDF，约 2 秒）…",
+    passed: "预检通过，可以定稿",
+    blocked: (n: number) => `预检发现 ${n} 个待处理问题`,
+    rerun: "重新预检",
+    compress: "AI 压到一页",
+    compressing: "正在压缩…",
+    compressDone: (saved: number) => `已压缩，省下 ${saved} 字`,
+    compressShort: (remaining: number) =>
+      `压到极限仍差约 ${remaining} 字：可删掉与 JD 重合度低的要点，或按当前页数导出`,
+    force: (pages: number) => `仍然按 ${pages} 页导出`,
+    goEdit: "去改稿",
+    undoCompress: "撤销压缩",
+  },
   knowledge: {
     title: "知识库",
     subtitle: (facts: number, pending: number) =>

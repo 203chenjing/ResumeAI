@@ -15,9 +15,10 @@ import {
 import ResumePreview from "@/components/edit/ResumePreview";
 import SuggestionPanel from "@/components/edit/SuggestionPanel";
 import ChatPanel from "@/components/edit/ChatPanel";
+import CapacityMeter from "@/components/studio/CapacityMeter";
 import { useAppStore, type DensityInfo } from "@/stores/useAppStore";
 import { api } from "@/lib/api";
-import { persistStudioMeta } from "@/lib/sessionBootstrap";
+import { persistStudioMeta, getPersistedSessionId } from "@/lib/sessionBootstrap";
 import { ROUTES } from "@/lib/navigation";
 import { copy } from "@/lib/copy";
 import { getClientId, loadLocalMemory } from "@/lib/userMemory";
@@ -61,8 +62,15 @@ export default function EditView() {
 
   useEffect(() => {
     if (!sessionId) {
-      router.replace(ROUTES.studioPrepare);
-      return;
+      // 有存档时先等水合，避免刷新被踢回准备页
+      if (!getPersistedSessionId()) {
+        router.replace(ROUTES.studioPrepare);
+        return;
+      }
+      const timer = setTimeout(() => {
+        if (!useAppStore.getState().sessionId) router.replace(ROUTES.studioPrepare);
+      }, 1500);
+      return () => clearTimeout(timer);
     }
     persistStudioMeta({
       sessionId,
@@ -196,6 +204,11 @@ export default function EditView() {
         {pending > 0 && (
           <span className="chip">{copy.edit.pendingSuggestions(pending)}</span>
         )}
+        <CapacityMeter
+          sessionId={sessionId}
+          markdown={currentMarkdown}
+          onOpenExport={() => router.push(ROUTES.studioExport)}
+        />
         <div className="ml-auto flex items-center gap-1.5">
           <button
             type="button"

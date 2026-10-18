@@ -116,6 +116,7 @@ class Session(BaseModel):
     jd_analysis: JDAnalysis | None = None
     current_resume_md: str = ""
     finalized_resume_md: str = ""
+    pre_compress_md: str = ""  # 一键压缩前的工作稿，用于撤销
     finalize_status: Literal["draft", "finalized", "stale"] = "draft"
     suggestions: list[Suggestion] = []
     chat_history: list[ChatMessage] = []

@@ -52,3 +52,39 @@ def test_normalize_experience_suggestions():
     )
     out = _normalize_experience_suggestions([sug])
     assert out[0].suggested_text.startswith("1. **新标题**：")
+
+
+def test_demote_flattened_sub_item():
+    """`2. **1）体验拆解**：…` 应还原成子要点，而不是第 2 条顶层编号。"""
+    raw = "2. **1）体验拆解与模块落地**：把体验目标拆成三个模块"
+    out = ensure_experience_item_format(raw)
+    assert out.startswith("1）**体验拆解与模块落地**：")
+    assert not out.startswith("2.")
+
+
+def test_demote_broken_bold_sub_item():
+    """历史数据里被拆坏的加粗：`2. **1）**体验拆解**：…`。"""
+    raw = "2. **1）**体验拆解与模块落地**：把体验目标拆成三个模块"
+    out = ensure_experience_item_format(raw)
+    assert out.startswith("1）**体验拆解与模块落地**：")
+    assert out.count("**") == 2  # 只有一对完整加粗，没有重复补星号
+
+
+def test_normalize_demotes_sub_items_in_block():
+    md = """## 实习经历
+
+**公司**  岗位  2025.01-2025.06
+
+1. **项目一**：主导结果页改版
+2. **1）体验拆解**：拆成三个模块
+3. **2）AI 摘要**：设计 Prompt 约束
+
+## 相关技能
+
+1. **工作技能**：协作
+"""
+    out = normalize_experience_markdown(md)
+    assert "1. **项目一**：主导结果页改版" in out
+    assert "1）**体验拆解**：拆成三个模块" in out
+    assert "2）**AI 摘要**：设计 Prompt 约束" in out
+    assert "2. **1）体验拆解**" not in out

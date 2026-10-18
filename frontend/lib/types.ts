@@ -454,3 +454,43 @@ export interface PendingKnowledgeItem {
   status: string;
   created_at: string;
 }
+
+// ---------------- 定稿预检 / 一页预算 ----------------
+export interface LayoutMetrics {
+  char_count: number;
+  estimated_pages: number;
+  capacity_pct: number;
+  experience_items: number;
+  experience_limit: number;
+  skill_items: number;
+  skill_limit: number;
+}
+
+export type PreflightAction = "compress" | "edit" | "force" | "none";
+
+export interface PreflightIssue {
+  code: string;
+  message: string;
+  hint: string;
+  action: PreflightAction;
+  blocking: boolean;
+}
+
+export interface PreflightResult {
+  passed: boolean;
+  page_count: number | null;
+  metrics: LayoutMetrics;
+  issues: PreflightIssue[];
+  checked_markdown?: string;
+}
+
+export interface CompressResult {
+  markdown: string;
+  changed: Array<{ before: string; after: string; saved: number }>;
+  removed_chars: number;
+  before: LayoutMetrics;
+  after: LayoutMetrics;
+  page_count: number | null;
+  reached_target: boolean;
+  remaining_chars: number;
+}

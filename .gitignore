@@ -27,3 +27,4 @@ backend/.deepeval/
 _deploy_logs/
 backend/_smoke.py
 backend/_e2e.py
+backend/pytest-of-*/

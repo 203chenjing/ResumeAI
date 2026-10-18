@@ -1,8 +1,14 @@
 // API 请求封装
-import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, InterviewBankResult, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, CrawlRun, SessionArchive, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem } from "./types";
+import { ApiResponse, JDAnalysis, MatchResult, ParsedResume, Suggestion, ApplicationRecord, ApplicationStats, PendingKnowledgeItem, JobPosting, JobFeedMeta, JobPreferences, JobDigest, CompareRow, InterviewPrepPack, InterviewBankResult, Reminder, PatternInsights, UserProfile, CareerCopilotEvent, CrawlHealth, CrawlRun, SessionArchive, TodayBriefing, AhaSnapshot, JobReadiness, AtsReadbackResult, BatchTailorItem, LayoutMetrics, PreflightResult, PreflightIssue, CompressResult } from "./types";
 import { getClientId } from "./userMemory";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/** 带结构化信息的错误：定稿被拦截时，issues 直接驱动 UI，而不是只弹一句话。 */
+export interface StructuredError extends Error {
+  code?: string;
+  issues?: PreflightIssue[];
+}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -13,12 +19,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   });
   if (!res.ok) {
-    let errMsg = `${res.status} ${res.statusText}`;
+    let message = `${res.status} ${res.statusText}`;
+    let code: string | undefined;
+    let issues: PreflightIssue[] | undefined;
     try {
       const data = await res.json();
-      errMsg = data.detail || data.error || errMsg;
-    } catch {}
-    throw new Error(errMsg);
+      const detail = data?.detail ?? data?.error;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (detail && typeof detail === "object") {
+        message = detail.message || message;
+        code = detail.code;
+        if (Array.isArray(detail.issues)) issues = detail.issues as PreflightIssue[];
+      }
+    } catch {
+      /* 非 JSON 错误体，保留状态码文案 */
+    }
+    const err = new Error(message) as StructuredError;
+    err.code = code;
+    err.issues = issues;
+    throw err;
   }
   return (await res.json()) as T;
 }
@@ -265,7 +285,7 @@ export const api = {
     return `${API_BASE}/api/export-pdf`;
   },
 
-  finalizeResume(session_id: string) {
+  finalizeResume(session_id: string, force = false) {
     return request<
       ApiResponse<{
         markdown: string;
@@ -281,11 +301,40 @@ export const api = {
         };
         emphasis_phrases?: string[];
         finalize_status: "draft" | "finalized" | "stale";
+        forced?: boolean;
       }>
     >("/api/finalize-resume", {
       method: "POST",
+      body: JSON.stringify({ session_id, force }),
+    });
+  },
+
+  layoutMetrics(session_id: string) {
+    return request<ApiResponse<LayoutMetrics>>(`/api/layout-metrics/${session_id}`);
+  },
+
+  preflight(session_id: string) {
+    return request<ApiResponse<PreflightResult>>("/api/preflight", {
+      method: "POST",
       body: JSON.stringify({ session_id }),
     });
+  },
+
+  compressToPage(session_id: string) {
+    return request<ApiResponse<CompressResult>>("/api/compress-to-page", {
+      method: "POST",
+      body: JSON.stringify({ session_id }),
+    });
+  },
+
+  undoCompression(session_id: string) {
+    return request<ApiResponse<{ markdown: string; metrics: LayoutMetrics }>>(
+      "/api/undo-compression",
+      {
+        method: "POST",
+        body: JSON.stringify({ session_id }),
+      }
+    );
   },
 
   unfinalizeResume(session_id: string) {

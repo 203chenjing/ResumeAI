@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, FileText, Loader2, CheckCircle2, Undo2 } from "lucide-react";
 import ResumePreview from "@/components/edit/ResumePreview";
 import ProfilePhotoModule from "@/components/upload/ProfilePhotoModule";
+import PreflightCard from "@/components/studio/PreflightCard";
 import { useAppStore } from "@/stores/useAppStore";
-import { api } from "@/lib/api";
+import { api, type StructuredError } from "@/lib/api";
 import { getClientId } from "@/lib/userMemory";
-import { persistStudioMeta } from "@/lib/sessionBootstrap";
+import { getPersistedSessionId, persistStudioMeta } from "@/lib/sessionBootstrap";
 import { ROUTES } from "@/lib/navigation";
 import { copy } from "@/lib/copy";
+import type { PreflightResult } from "@/lib/types";
 
 export default function ExportView() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function ExportView() {
     currentMarkdown,
     finalizedMarkdown,
     finalizeStatus,
+    setCurrentMarkdown,
     setFinalizedMarkdown,
     setFinalizeStatus,
     pushToast,
@@ -43,21 +46,55 @@ export default function ExportView() {
   } | null>(null);
   const [layoutLoading, setLayoutLoading] = useState(false);
   const [emphasisPhrases, setEmphasisPhrases] = useState<string[]>([]);
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [compressNote, setCompressNote] = useState("");
 
   const isFinalized = finalizeStatus === "finalized" && !!finalizedMarkdown;
 
+  // 深链/刷新保护：有存档时等 SessionBootstrap 水合，别抢在水合前把人踢回准备页
   useEffect(() => {
-    if (!sessionId) {
+    if (sessionId) return;
+    if (!getPersistedSessionId()) {
       router.replace(ROUTES.studioPrepare);
       return;
     }
+    const timer = setTimeout(() => {
+      if (!useAppStore.getState().sessionId) router.replace(ROUTES.studioPrepare);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [sessionId, router]);
+
+  useEffect(() => {
+    if (!sessionId) return;
     persistStudioMeta({
       sessionId,
       step: 3,
       company: jdAnalysis?.company,
       role: jdAnalysis?.role,
     });
-  }, [sessionId, router, jdAnalysis?.company, jdAnalysis?.role]);
+  }, [sessionId, jdAnalysis?.company, jdAnalysis?.role]);
+
+  const runPreflight = useCallback(async () => {
+    if (!sessionId) return;
+    setPreflightLoading(true);
+    try {
+      const res = await api.preflight(sessionId);
+      if (res.success && res.data) setPreflight(res.data);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPreflightLoading(false);
+    }
+  }, [sessionId]);
+
+  // 进页面即体检：让「2 页 / 条数超限」在点定稿之前就可见
+  useEffect(() => {
+    if (!sessionId || isFinalized) return;
+    const timer = setTimeout(runPreflight, 300);
+    return () => clearTimeout(timer);
+  }, [sessionId, isFinalized, currentMarkdown, runPreflight]);
 
   useEffect(() => {
     if (!sessionId || !isFinalized) {
@@ -88,10 +125,14 @@ export default function ExportView() {
       setError(copy.export.pendingBlock(pending));
       return;
     }
+    await finalize(false);
+  }
+
+  async function finalize(force: boolean) {
     setFinalizing(true);
     setError("");
     try {
-      const res = await api.finalizeResume(sessionId);
+      const res = await api.finalizeResume(sessionId as string, force);
       if (!res.success || !res.data) throw new Error("定稿失败");
       setFinalizedMarkdown(res.data.markdown);
       setFinalizeStatus("finalized");
@@ -108,9 +149,53 @@ export default function ExportView() {
         pushToast(copy.export.finalizeOk, "success");
       }
     } catch (e) {
-      setError((e as Error).message);
+      const err = e as StructuredError;
+      if (err.issues?.length && preflight) {
+        // 结构化拦截：把问题直接铺进预检卡片，而不是只丢一句红字
+        setPreflight({ ...preflight, passed: false, issues: err.issues });
+      }
+      setError(err.message);
     } finally {
       setFinalizing(false);
+    }
+  }
+
+  async function onCompress() {
+    setCompressing(true);
+    setError("");
+    setCompressNote("");
+    try {
+      const res = await api.compressToPage(sessionId as string);
+      if (!res.success || !res.data) throw new Error("压缩失败");
+      const data = res.data;
+      setCurrentMarkdown(data.markdown);
+      if (data.reached_target) {
+        setCompressNote(copy.preflight.compressDone(data.removed_chars));
+        pushToast(copy.preflight.compressDone(data.removed_chars), "success");
+      } else {
+        setCompressNote(copy.preflight.compressShort(data.remaining_chars));
+      }
+      await runPreflight();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCompressing(false);
+    }
+  }
+
+  async function onUndoCompress() {
+    setCompressing(true);
+    setError("");
+    try {
+      const res = await api.undoCompression(sessionId as string);
+      if (!res.success || !res.data) throw new Error("撤销失败");
+      setCurrentMarkdown(res.data.markdown);
+      setCompressNote("");
+      await runPreflight();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCompressing(false);
     }
   }
 
@@ -118,7 +203,7 @@ export default function ExportView() {
     setUnfinalizing(true);
     setError("");
     try {
-      const res = await api.unfinalizeResume(sessionId);
+      const res = await api.unfinalizeResume(sessionId as string);
       if (!res.success) throw new Error(res.error || "撤销定稿失败");
       setFinalizeStatus("draft");
       pushToast(copy.export.unfinalizeOk, "success");
@@ -138,7 +223,7 @@ export default function ExportView() {
     setBusy(true);
     setError("");
     try {
-      const blob = await api.exportPdf(sessionId, mode);
+      const blob = await api.exportPdf(sessionId as string, mode);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -150,7 +235,7 @@ export default function ExportView() {
       api.hub.recordFunnel(getClientId(), "export_pdf", { session_id: sessionId }).catch(() => {});
 
       try {
-        const ats = await api.hub.atsReadback(sessionId, filename);
+        const ats = await api.hub.atsReadback(sessionId as string, filename);
         if (ats.success && ats.data) {
           const score = ats.data.ats_score;
           if (ats.data.readable) {
@@ -212,19 +297,34 @@ export default function ExportView() {
         </div>
 
         {!isFinalized && (
-          <div className="alert-warning">
-            <p className="mb-4">{copy.export.finalizeHint(pending)}</p>
-            <button
-              type="button"
-              onClick={onFinalize}
-              disabled={finalizing || pending > 0}
-              className="btn-primary"
-              style={{ background: "var(--semantic-success)" }}
-            >
-              {finalizing ? <Loader2 size={14} className="animate-spin" /> : null}
-              {copy.export.finalize}
-            </button>
-          </div>
+          <>
+            <PreflightCard
+              preflight={preflight}
+              loading={preflightLoading}
+              compressing={compressing}
+              isFinalized={isFinalized}
+              compressNote={compressNote}
+              canUndoCompress={!!compressNote}
+              onRefresh={runPreflight}
+              onCompress={onCompress}
+              onForce={() => finalize(true)}
+              onGoEdit={() => router.push(ROUTES.studioEdit)}
+              onUndoCompress={onUndoCompress}
+            />
+            <div className="alert-warning">
+              <p className="mb-4">{copy.export.finalizeHint(pending)}</p>
+              <button
+                type="button"
+                onClick={onFinalize}
+                disabled={finalizing || pending > 0}
+                className="btn-primary"
+                style={{ background: "var(--semantic-success)" }}
+              >
+                {finalizing ? <Loader2 size={14} className="animate-spin" /> : null}
+                {copy.export.finalize}
+              </button>
+            </div>
+          </>
         )}
 
         {isFinalized && (
@@ -235,84 +335,84 @@ export default function ExportView() {
                 : "border-[var(--semantic-warning)]/30"
             }`}
           >
-          {layoutLoading ? (
-            <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
-              <Loader2 size={14} className="animate-spin" /> {copy.export.layoutChecking}
-            </span>
-          ) : layoutCheck ? (
-            <div className="space-y-1">
-              <p>
-                {layoutCheck.ok ? copy.export.layoutOk : copy.export.layoutWarn}
-                {layoutCheck.bottom_gap_mm != null && (
-                  <span className="ml-2">
-                    {copy.export.bottomGap(layoutCheck.bottom_gap_mm)}
-                   {layoutCheck.bottom_gap_mm > 20 ? copy.export.bottomGapLarge : copy.export.bottomGapOk}
-                  </span>
-                )}
-                {layoutCheck.char_count != null && (
-                  <span className="ml-2 text-[var(--text-secondary)]">
-                    · 约 {layoutCheck.char_count} 字
-                  </span>
-                )}
-              </p>
-              {layoutCheck.density_message && (
-                <p className="text-xs text-[var(--text-secondary)]">{layoutCheck.density_message}</p>
-              )}
-              {emphasisPhrases.length > 0 && (
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {copy.export.emphasis(emphasisPhrases, emphasisPhrases.length)}
+            {layoutLoading ? (
+              <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                <Loader2 size={14} className="animate-spin" /> {copy.export.layoutChecking}
+              </span>
+            ) : layoutCheck ? (
+              <div className="space-y-1">
+                <p>
+                  {layoutCheck.ok ? copy.export.layoutOk : copy.export.layoutWarn}
+                  {layoutCheck.bottom_gap_mm != null && (
+                    <span className="ml-2">
+                      {copy.export.bottomGap(layoutCheck.bottom_gap_mm)}
+                      {layoutCheck.bottom_gap_mm > 20 ? copy.export.bottomGapLarge : copy.export.bottomGapOk}
+                    </span>
+                  )}
+                  {layoutCheck.char_count != null && (
+                    <span className="ml-2 text-[var(--text-secondary)]">
+                      · 约 {layoutCheck.char_count} 字
+                    </span>
+                  )}
                 </p>
-              )}
-              {layoutCheck.layout_issues && layoutCheck.layout_issues.length > 0 && (
-                <ul className="text-xs list-disc pl-4 text-[var(--semantic-warning)]">
-                  {layoutCheck.layout_issues.map((issue) => (
-                    <li key={issue}>{issue}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : null}
-        </div>
-      )}
+                {layoutCheck.density_message && (
+                  <p className="text-xs text-[var(--text-secondary)]">{layoutCheck.density_message}</p>
+                )}
+                {emphasisPhrases.length > 0 && (
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {copy.export.emphasis(emphasisPhrases, emphasisPhrases.length)}
+                  </p>
+                )}
+                {layoutCheck.layout_issues && layoutCheck.layout_issues.length > 0 && (
+                  <ul className="text-xs list-disc pl-4 text-[var(--semantic-warning)]">
+                    {layoutCheck.layout_issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
 
-      <ProfilePhotoModule sessionId={sessionId} />
+        <ProfilePhotoModule sessionId={sessionId} />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="text-sm text-[var(--text-secondary)]">
-          {copy.export.accepted(accepted)}
-          {isFinalized && (
-            <span className="ml-2 text-[var(--semantic-success)] inline-flex items-center gap-1">
-              <CheckCircle2 size={14} /> {copy.export.finalized}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="text-sm text-[var(--text-secondary)]">
+            {copy.export.accepted(accepted)}
+            {isFinalized && (
+              <span className="ml-2 text-[var(--semantic-success)] inline-flex items-center gap-1">
+                <CheckCircle2 size={14} /> {copy.export.finalized}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={download}
+            disabled={busy || !isFinalized}
+            className="btn-primary"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {copy.export.download}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={download}
-          disabled={busy || !isFinalized}
-          className="btn-primary"
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-          {copy.export.download}
-        </button>
-      </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 section-card overflow-hidden p-0">
-          <ResumePreview markdown={previewMd} finalized={isFinalized} sessionId={sessionId} />
+        <div className="grid lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 section-card overflow-hidden p-0">
+            <ResumePreview markdown={previewMd} finalized={isFinalized} sessionId={sessionId} />
+          </div>
+          <div className="space-y-3">
+            <ModeCard active={mode === "standard"} onClick={() => setMode("standard")} title={copy.export.standard} desc={copy.export.standardDesc} />
+            <ModeCard active={mode === "diff"} onClick={() => setMode("diff")} title={copy.export.diff} desc={copy.export.diffDesc} />
+            {appId && (
+              <Link href={`/interview/${appId}`} className="text-link block px-1">
+                {copy.export.interviewPrep} →
+              </Link>
+            )}
+          </div>
         </div>
-        <div className="space-y-3">
-          <ModeCard active={mode === "standard"} onClick={() => setMode("standard")} title={copy.export.standard} desc={copy.export.standardDesc} />
-          <ModeCard active={mode === "diff"} onClick={() => setMode("diff")} title={copy.export.diff} desc={copy.export.diffDesc} />
-          {appId && (
-            <Link href={`/interview/${appId}`} className="text-link block px-1">
-              {copy.export.interviewPrep} →
-            </Link>
-          )}
-        </div>
-      </div>
 
-      {error && <p className="alert-error">{error}</p>}
+        {error && <p className="alert-error">{error}</p>}
       </div>
     </div>
   );

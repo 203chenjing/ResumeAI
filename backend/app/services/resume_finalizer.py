@@ -6,9 +6,11 @@ from pathlib import Path
 
 from app.models.schemas import JDAnalysis, Session
 from app.prompts.finalize_resume import build_finalize_prompt
+from app.services.layout_budget import layout_metrics
 from app.services.llm_client import client
 from app.services.photo_context import photo_context_for_session
 from app.services.pdf_exporter import validate_resume_markdown
+from app.services.preflight import blocking_issues
 from app.services.resume_emphasis import apply_export_emphasis
 from app.services.profile_photo import (
     apply_photo_to_markdown,
@@ -19,10 +21,20 @@ from app.services.profile_photo import (
 logger = logging.getLogger(__name__)
 
 
-async def finalize_resume(sess: Session) -> dict:
+class FinalizeBlocked(ValueError):
+    """定稿被校验拦截；携带结构化问题，供前端渲染成可操作卡片。"""
+
+    def __init__(self, message: str, issues: list[dict]):
+        super().__init__(message)
+        self.issues = issues
+
+
+async def finalize_resume(sess: Session, *, force: bool = False) -> dict:
     """将当前工作稿定稿为可导出版本。
 
-    优先直接校验当前 Markdown；仅在校验失败时调用 LLM 做最小排版修正。
+    - 格式类问题（skill）先让 LLM 做**最小**修正
+    - 页数超限不再靠整篇重写硬压：交给用户「一键压缩」或显式 force 导出，
+      避免把用户逐条确认的建议冲掉
     """
     if not sess.current_resume_md.strip():
         raise ValueError("无简历内容可定稿")
@@ -38,15 +50,14 @@ async def finalize_resume(sess: Session) -> dict:
     validation = validate_resume_markdown(working_md, session_id=sess.session_id)
     regenerated = False
 
-    if not _is_valid(validation):
+    # 只有格式问题才值得让模型改；页数问题用户自己决定（压缩 or 仍然导出）
+    if validation.get("skill_issues") and not force:
         working_md, validation, regenerated = await _fix_with_llm(sess, working_md, validation)
 
-    if not _is_valid(validation):
-        issues = validation.get("skill_issues", []) + validation.get("layout_issues", [])
-        raise ValueError(
-            "定稿未通过校验："
-            + ("；".join(issues) if issues else "请检查内容长度与格式")
-        )
+    metrics = layout_metrics(working_md)
+    blocking = blocking_issues(validation, metrics, force=force)
+    if blocking:
+        raise FinalizeBlocked("；".join(i["message"] for i in blocking), blocking)
 
     pre_emphasis_md = working_md
     working_md, emphasis_phrases = await apply_export_emphasis(sess, working_md)
