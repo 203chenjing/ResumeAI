@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import re
 
-CHARS_PER_PAGE = 2400  # 实测：~2000 字单页仍有余量，~3050 字溢出到 2 页
+CHARS_PER_PAGE = 2700  # 实测校准：2596 字渲染 1 页，2813/3052 字渲染 2 页
 EXPERIENCE_ITEM_LIMIT = 5
 SKILL_ITEM_LIMIT = 4
 
