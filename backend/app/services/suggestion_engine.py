@@ -8,6 +8,7 @@ from app.models.schemas import JDAnalysis, MatchResult, Suggestion
 from app.prompts.suggestions import build_suggestion_prompt
 from app.prompts.adjust import build_adjust_prompt
 from app.services.llm_client import client
+from app.services.resume_density import assess_density
 from app.services.suggestion_anchor import anchor_suggestions
 from app.services.resume_list_format import ensure_experience_item_format
 

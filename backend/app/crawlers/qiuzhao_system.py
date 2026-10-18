@@ -1,10 +1,9 @@
 """27届秋招资讯聚合系统 Provider：直接读取秋招系统 SQLite 岗位库。
 
 背景：
-「秋招」本地系统（D:/Users/qiujc/Downloads/秋招）已多源抓取并清洗了大量 27 届校招
-数据（搜狗微信 / 牛客 / 智联校招 / 前程无忧 / 实习僧 / 应届生求职网），存储在
-data/qiuzhao.db 的 jobs 表。ResumeAI 直接消费该库，可避免重复抓取、复用已沉淀
-的公司名/地点/薪资结构化字段，让岗位获取更快更准。
+配套的「秋招」本地聚合系统已多源抓取并清洗了大量 27 届校招数据（搜狗微信 / 牛客 /
+智联校招 / 前程无忧 / 实习僧 / 应届生求职网），存储在 data/qiuzhao.db 的 jobs 表。
+ResumeAI 直接消费该库，可避免重复抓取、复用已沉淀的公司名/地点/薪资结构化字段。
 
 合规：
 - 仅读取本地已入库的公开数据，不新增网络请求；
@@ -22,11 +21,18 @@ import sqlite3
 from pathlib import Path
 
 from app.crawlers.base import CrawlerProvider, JobPosting
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# 秋招系统默认数据库路径（可用 YAML db_path 覆盖）
-DEFAULT_DB_PATH = Path("D:/Users/qiujc/Downloads/秋招/data/qiuzhao.db")
+# 秋招系统数据库路径：默认取 backend/data/qiuzhao.db，
+# 可用环境变量 QIUZHAO_DB_PATH 或 YAML 的 db_path 覆盖（不再写死开发机绝对路径）
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = (
+    Path(settings.qiuzhao_db_path)
+    if settings.qiuzhao_db_path
+    else _BACKEND_ROOT / "data" / "qiuzhao.db"
+)
 
 # 已知公司（用于公司名缺失时从标题/描述兜底提取）
 KNOWN_COMPANIES = (

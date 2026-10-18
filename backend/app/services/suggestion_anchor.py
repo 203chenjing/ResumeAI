@@ -7,11 +7,17 @@ from difflib import SequenceMatcher
 from app.models.schemas import Suggestion
 
 _NUM_LINE = re.compile(r"^\d+\.\s*.+")
+_NUM_PREFIX = re.compile(r"^\d+\s*[.、．]\s*")
 _WS = re.compile(r"\s+")
 
 
 def _norm(text: str) -> str:
     return _WS.sub("", text or "").lower()
+
+
+def _strip_number(text: str) -> str:
+    """去掉列表编号：建议里的 `1.` 可能和简历当前编号不一致。"""
+    return _NUM_PREFIX.sub("", (text or "").strip())
 
 
 def _extract_title(text: str) -> str:
@@ -59,11 +65,16 @@ def find_line_range(resume_md: str, text: str) -> list[int]:
     for i, line in enumerate(lines, 1):
         if needle in line or line.strip() == needle:
             return [i, i]
-    nn = _norm(needle)
-    for i, line in enumerate(lines, 1):
-        nl = _norm(line)
-        if len(nl) >= 16 and (nn in nl or nl in nn):
-            return [i, i]
+
+    # 编号漂移：建议文本常带旧编号，比对时忽略行首 `N.`
+    nn = _norm(_strip_number(needle))
+    if nn:
+        for i, line in enumerate(lines, 1):
+            nl = _norm(_strip_number(line))
+            if not nl:
+                continue
+            if nn == nl or (len(nl) >= 8 and (nn in nl or nl in nn)):
+                return [i, i]
     return [0, 0]
 
 

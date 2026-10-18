@@ -25,7 +25,13 @@ def format_numbered_item(num: str, title: str, body: str) -> str:
 
 
 def ensure_experience_item_format(text: str, *, reference: str = "") -> str:
-    """将经历行规范为 `N. **小标题**：STAR…`；保留原编号。"""
+    """将经历行规范为 `N. **小标题**：STAR…`；保留原编号。
+
+    - 自带编号：以自身编号为准
+    - 不带编号：沿用 reference 的编号（同一 bullet 的改写）
+    - 自身没有小标题、但 reference 有：借用 reference 的小标题，
+      仅限「编号来自 reference」的场景，避免把别的 bullet 标题套错
+    """
     raw = (text or "").strip()
     if not raw:
         return raw
@@ -37,16 +43,23 @@ def ensure_experience_item_format(text: str, *, reference: str = "") -> str:
     if _BOLD_ITEM.match(raw):
         return raw
 
+    borrowed_ref = False
     if num_m:
         num, rest = num_m.group(1), raw[num_m.end() :]
     elif ref_num:
         num, rest = ref_num.group(1), raw
+        borrowed_ref = True
     else:
         return raw
 
     split = _split_title_body(rest)
     if split:
         return format_numbered_item(num, split[0], split[1])
+
+    if borrowed_ref:
+        ref_split = _split_title_body(_NUM_PREFIX.sub("", ref))
+        if ref_split:
+            return format_numbered_item(num, ref_split[0], rest)
 
     return f"{num}. {rest}"
 

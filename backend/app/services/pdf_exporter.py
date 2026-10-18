@@ -1,5 +1,6 @@
 """PDF 导出服务：调用 tools/markdown_resume_to_pdf.py。"""
 import logging
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,39 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 TOOLS_DIR = BACKEND_ROOT / "tools"
 EXPORT_DIR = BACKEND_ROOT / "exports"
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+_UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_MAX_NAME_LEN = 120
+
+
+def safe_export_filename(filename: str, *, default: str = "resume.pdf") -> str:
+    """把外部传入的文件名收敛成 `exports/` 下的纯文件名。
+
+    防目录穿越与绝对路径写入：`../../.env`、`C:\\Windows\\x.pdf` 都会退化成
+    单段文件名；Windows 保留字符统一替换为下划线。
+    """
+    name = Path(str(filename or "").strip().replace("\\", "/")).name
+    name = _UNSAFE_CHARS.sub("_", name).strip().strip(".")
+    if not name:
+        return default
+    if not name.lower().endswith(".pdf"):
+        name = f"{name}.pdf"
+    if len(name) > _MAX_NAME_LEN:
+        # 截断时保留扩展名，避免产物变成无后缀文件
+        name = f"{name[:-4][: _MAX_NAME_LEN - 4]}.pdf"
+    return name
+
+
+def _tool_failure_message(result: subprocess.CompletedProcess) -> str:
+    """把渲染工具的堆栈收敛成一句可操作提示（不把 traceback 抛给前端）。"""
+    output = f"{result.stderr or ''}\n{result.stdout or ''}"
+    lowered = output.lower()
+    if "executable doesn't exist" in lowered or "playwright install" in lowered:
+        return "PDF 渲染组件不可用：请先执行 `python -m playwright install chromium` 后重试"
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    last = lines[-1] if lines else "PDF 生成失败"
+    return f"PDF 生成失败：{last[:160]}"
+
 
 
 def check_markdown_skill(md_path: Path) -> tuple[bool, list[str]]:
@@ -86,7 +120,7 @@ def validate_resume_markdown(markdown: str, session_id: str = "") -> dict:
                 layout_issues.extend(gap_info.get("issues", []))
                 bottom_gap_mm = gap_info.get("bottom_gap_mm")
         elif result.returncode != 0:
-            layout_issues.append(result.stderr.strip() or result.stdout.strip() or "PDF 生成失败")
+            layout_issues.append(_tool_failure_message(result))
             bottom_gap_mm = None
         else:
             bottom_gap_mm = None
@@ -128,7 +162,8 @@ def export_pdf(
     """
     from app.services.profile_photo import stage_photo_for_export
 
-    md_path = EXPORT_DIR / f"{filename.replace('.pdf', '')}.md"
+    filename = safe_export_filename(filename)
+    md_path = EXPORT_DIR / f"{filename[:-4]}.md"
     pdf_path = EXPORT_DIR / filename
 
     staged_md = markdown

@@ -183,7 +183,9 @@ async def post_ats_readback(body: AtsReadbackBody):
         role = sess.jd_analysis.role if sess.jd_analysis else "目标岗位"
         filename = f"{company}+{name}+{role}.pdf"
 
-    pdf_path = EXPORT_DIR / filename
+    from app.services.pdf_exporter import safe_export_filename
+
+    pdf_path = EXPORT_DIR / safe_export_filename(filename)
     if not pdf_path.exists():
         raise HTTPException(404, "PDF 不存在，请先导出")
 

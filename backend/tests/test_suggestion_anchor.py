@@ -29,5 +29,8 @@ def test_fuzzy_title_match():
 
 
 def test_find_line_range():
+    # 建议文本可能带旧编号（这里 1.），简历里是 2.：应按内容定位，而不是按编号失配返回 [0, 0]
     line = "1. 大搜结果页 AI 化·AI 快筛：参与快筛模块 PRD 撰写"
-    assert find_line_range(SAMPLE, line) == [9, 9]
+    line_range = find_line_range(SAMPLE, line)
+    assert line_range == [7, 7]
+    assert "快筛" in SAMPLE.splitlines()[line_range[0] - 1]

@@ -1,4 +1,7 @@
-"""Windows 兼容启动：在创建事件循环前设置 Proactor 策略。"""
+"""Windows 兼容启动：在创建事件循环前设置 Proactor 策略。
+
+读取 backend/.env 中的 HOST / PORT / DEBUG，避免配置项写了却不生效。
+"""
 from __future__ import annotations
 
 import asyncio
@@ -11,11 +14,14 @@ def main() -> None:
 
     import uvicorn
 
+    from app.config import settings
+
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+        reload_dirs=["app"],
     )
 
 

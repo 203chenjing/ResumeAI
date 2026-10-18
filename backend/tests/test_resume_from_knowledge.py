@@ -78,7 +78,9 @@ async def test_build_resume_from_knowledge_updates_session(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_resume_empty_kb_raises():
+async def test_build_resume_empty_kb_raises(monkeypatch):
+    # 隔离 L4 记忆回退：否则默认 client 会读到仓库内 memory/ 的素材并真打 LLM
+    monkeypatch.setattr(rfk, "load_memory", lambda _cid="default": {})
     sess = Session(
         session_id="kb-empty",
         jd_analysis=JDAnalysis(role="产品"),

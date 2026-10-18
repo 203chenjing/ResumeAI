@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     crawl_schedule_minute: int = 0
     crawl_schedule_client_id: str = "default"
 
+    # 秋招聚合库（可选外部数据源）：留空则不启用，避免写死个人机器路径
+    qiuzhao_db_path: str = ""
+
     # 六层记忆架构（见 docs/memory-architecture.md）
     memory_summary_threshold: int = 12
     autodream_min_hours: int = 24

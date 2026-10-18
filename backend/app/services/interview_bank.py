@@ -12,9 +12,17 @@ import re
 import sqlite3
 from pathlib import Path
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_DB_PATH = Path("D:/Users/qiujc/Downloads/秋招/data/qiuzhao.db")
+# 面经库默认读取 backend/data/qiuzhao.db，可用 QIUZHAO_DB_PATH 覆盖
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = (
+    Path(settings.qiuzhao_db_path)
+    if settings.qiuzhao_db_path
+    else _BACKEND_ROOT / "data" / "qiuzhao.db"
+)
 
 # 面试问题信号：从面经文本中提取"被问到的问题"
 # 1) "面试官问：xxx？" 句式

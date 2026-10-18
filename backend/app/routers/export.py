@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.models.schemas import ApiResponse
-from app.services.pdf_exporter import export_pdf
+from app.services.pdf_exporter import export_pdf, safe_export_filename
 from app.services.session_store import store
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ async def export_pdf_route(payload: ExportRequest):
     return FileResponse(
         pdf_path,
         media_type="application/pdf",
-        filename=filename,
+        filename=safe_export_filename(filename),
     )
 
 
@@ -102,11 +102,13 @@ async def preview_pdf(payload: ExportRequest):
 
 @router.get("/download/{filename}")
 async def download(filename: str):
-    from app.services.pdf_exporter import EXPORT_DIR
-    path = EXPORT_DIR / filename
-    if not path.exists():
+    from app.services.pdf_exporter import EXPORT_DIR, safe_export_filename
+
+    # 只允许读取 exports/ 目录下的文件：外部文件名先收敛，再校验归属
+    path = (EXPORT_DIR / safe_export_filename(filename)).resolve()
+    if EXPORT_DIR.resolve() not in path.parents or not path.exists():
         raise HTTPException(404, "文件不存在")
-    return FileResponse(path, media_type="application/pdf", filename=filename)
+    return FileResponse(path, media_type="application/pdf", filename=path.name)
 
 
 def _build_diff_markdown(original: str, current: str, suggestions: list) -> str:

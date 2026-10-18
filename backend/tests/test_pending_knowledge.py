@@ -27,7 +27,37 @@ def test_extract_and_confirm(client):
     assert entry is not None
     pending = list_pending(client)
     assert len(pending) == 1
-    confirm_pending(client, entry["id"], "confirm")
+    confirm_pending(client, entry["id"], "confirm", "携程 · 产品实习")
     assert list_pending(client) == []
     kb = merge_confirmed_into_kb("", client)
+    assert "### 携程 · 产品实习" in kb
     assert "优化后的量化" in kb
+
+
+def test_confirm_requires_target_title(client):
+    """确认必须选归属经历，否则素材无处归档。"""
+    entry = extract_pending_from_diff(
+        client_id=client,
+        source="test",
+        original_text="原文",
+        new_text="优化后的量化描述",
+    )
+    assert entry is not None
+
+    with pytest.raises(ValueError, match="归属经历"):
+        confirm_pending(client, entry["id"], "confirm")
+
+    # 失败后条目仍是 pending，不能被静默丢弃
+    assert len(list_pending(client)) == 1
+
+
+def test_ignore_without_title(client):
+    entry = extract_pending_from_diff(
+        client_id=client,
+        source="test",
+        original_text="原文",
+        new_text="优化后的量化描述",
+    )
+    assert entry is not None
+    confirm_pending(client, entry["id"], "ignore")
+    assert list_pending(client) == []

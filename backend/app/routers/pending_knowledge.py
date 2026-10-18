@@ -31,7 +31,9 @@ async def post_confirm(body: ConfirmPendingBody):
     try:
         item = confirm_pending(body.client_id, body.entry_id, body.action, body.target_title)
     except ValueError as e:
-        raise HTTPException(404, str(e)) from e
+        # 参数问题（如未选归属经历）是 400，不是 404；404 只用于条目不存在
+        status = 404 if "不存在" in str(e) else 400
+        raise HTTPException(status, str(e)) from e
     return ApiResponse(success=True, data=item)
 
 
