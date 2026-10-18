@@ -1,20 +1,16 @@
 FROM python:3.11-slim
 
-# WeasyPrint 依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libharfbuzz0b \
-    libcairo2 \
-    libgdk-pixbuf-2.0-0 \
-    libffi-dev \
-    fonts-noto-cjk \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# PDF 导出走 Playwright + Chromium（tools/markdown_resume_to_pdf.py）；
+# 不装浏览器时导出接口会在运行期失败，所以必须在镜像构建时装好
+RUN playwright install --with-deps chromium
 
 COPY . .
 

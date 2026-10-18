@@ -22,3 +22,8 @@ backend/data/
 backend/.deepeval/
 .vscode/
 .idea/
+
+# 本地部署验证产物（日志、临时脚本），不入库
+_deploy_logs/
+backend/_smoke.py
+backend/_e2e.py

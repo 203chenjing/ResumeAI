@@ -22,7 +22,7 @@
 | **GUI + LUI 双模交互** | 列表点选为主路径，对话微调为辅；助手可驱动左侧预览与建议列表同步更新 |
 | **投递级 PDF** | A4 单页、关键词加粗、版面留白检测、证件照裁剪；支持标准版 / 修改痕迹版 |
 | **校招场景增强** | 多源岗位聚合（GitHub 校招库 / 企业 ATS / 高校就业网）、岗位对比、投递看板、拒信模式洞察、模拟面试 |
-| **工程可验证** | 后端 **102+** 单元测试，CI 自动跑 pytest + 冒烟 + 前端构建 |
+| **工程可验证** | 后端 **190+** 单元测试，CI 自动跑 pytest + 冒烟 + 前端构建与 lint |
 
 ### 和「只聊天改简历」的差异
 
@@ -104,6 +104,31 @@ npm run dev                   # http://localhost:3000
 
 API 文档：`http://localhost:8000/docs`
 
+> 导出 PDF 依赖 Chromium：首次使用前在 `backend` 目录执行
+> `python -m playwright install chromium`（约 200MB，只需一次）。
+
+### Docker 部署
+
+```bash
+cp backend/.env.example backend/.env   # 填入 DEEPSEEK_API_KEY
+docker compose up -d --build
+```
+
+- 后端镜像已内置 Chromium，导出 PDF 开箱可用
+- 前端 `NEXT_PUBLIC_API_URL` 在 **build 阶段**固化，换地址需 `docker compose build frontend`
+- 健康检查：`curl http://localhost:8000/health` 应返回 `"llm_configured": true`
+
+### 常见问题
+
+| 现象 | 原因与处理 |
+|------|-----------|
+| 接口返回 `503 llm_not_configured` | `backend/.env` 未填 `DEEPSEEK_API_KEY`（或填错），补齐后重启后端 |
+| 接口返回 `502 llm_upstream_error` | DeepSeek 侧限流/故障；客户端已自动重试 3 次，仍失败看后端日志 |
+| 定稿/导出报「PDF 渲染组件不可用」 | 未安装 Chromium：`python -m playwright install chromium` |
+| 页面一直转圈 | 后端未启动或 CORS 不匹配；先看 `http://127.0.0.1:8000/health` |
+| 端口被占用 | `start.bat` 会自动清理 8000/3000；手动启动需先结束旧进程 |
+
+
 ---
 
 ## 推荐使用路径
@@ -139,7 +164,7 @@ API 文档：`http://localhost:8000/docs`
 |----|------|
 | 前端 | Next.js 14 · React 18 · Zustand · Tailwind |
 | 后端 | FastAPI · Pydantic · DeepSeek API |
-| PDF | WeasyPrint / Playwright · 自研 Markdown → A4 排版 |
+| PDF | Playwright + Chromium · 自研 Markdown → A4 排版 |
 | 测试 | pytest（102+）· GitHub Actions CI |
 
 产品设计参考 Google Material 信息架构：**单一主路径、渐进披露、AI 提案 + 人决策**。文案与样式集中在 `frontend/lib/copy.ts` 与 `globals.css` 设计 token。
@@ -187,8 +212,9 @@ cd frontend && npm run build
 
 | 变量 | 说明 |
 |------|------|
-| `DEEPSEEK_API_KEY` | 必填，LLM 调用与岗位 AI 解析/打标签 |
+| `DEEPSEEK_API_KEY` | 必填，LLM 调用与岗位 AI 解析/打标签；未配置时 AI 接口返回 503 |
 | `CRAWL_SCHEDULE_ENABLED` | 可选，设为 `true` 开启每日定时抓取（默认开启） |
+| `QIUZHAO_DB_PATH` | 可选，外部秋招聚合库 `qiuzhao.db` 路径（默认 `backend/data/qiuzhao.db`） |
 
 勿将 `backend/.env` 提交到 Git。
 
@@ -219,4 +245,4 @@ cd frontend && npm run build
 
 ## License
 
-MIT（如仓库未单独声明，以实际 LICENSE 文件为准）
+MIT — 见 [LICENSE](LICENSE)。
